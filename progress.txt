@@ -1,0 +1,30 @@
+# Zotero AI Reader Plugin - Progress
+
+## Completed
+
+- [x] 项目文档初始化
+  - PRD.md (产品需求)
+  - APP_FLOW.md (应用流程)
+  - TECH_STACK.md (技术栈)
+  - FRONTEND_GUIDELINES.md (前端指南)
+  - BACKEND_STRUCTURE.md (后端结构)
+  - IMPLEMENTATION_PLAN.md (实施计划)
+  - CLAUDE.md (项目指南)
+  - lessons.md (经验积累)
+
+## Progress
+
+- [ ] Phase 1: 基础框架
+  - [ ] 插件骨架搭建
+  - [ ] UI框架搭建 (ReaderPaneSection x2)
+  - [ ] LLM服务层基础
+
+## Next
+
+- Phase 2: PDF文本提取 + 目录生成
+- Phase 3: 对话功能 + 历史持久化
+- Phase 4: 多LLM支持 + 优化
+
+---
+
+Last Updated: 2026-04-26
