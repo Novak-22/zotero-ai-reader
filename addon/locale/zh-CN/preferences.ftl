@@ -1,5 +1,12 @@
-pref-title = 插件模板设置示例
-pref-enable =
-    .label = 开启
-pref-input = 输入
+pref-title = AI Reader 设置
+pref-default-provider = 默认 Provider:
+pref-api-key = API 密钥:
+pref-endpoint = 端点地址:
+pref-model = 模型:
+pref-openai-title = OpenAI 设置
+pref-claude-title = Claude 设置
+pref-ollama-title = Ollama 设置
+pref-generic-title = 通用 API 设置
+pref-chat-history =
+    .label = 启用对话历史持久化
 pref-help = { $name } Build { $version } { $time }

@@ -1,5 +1,12 @@
-pref-title = Addon Template Example
-pref-enable =
-    .label = Enable
-pref-input = Input
+pref-title = AI Reader Settings
+pref-default-provider = Default Provider:
+pref-api-key = API Key:
+pref-endpoint = Endpoint:
+pref-model = Model:
+pref-openai-title = OpenAI Settings
+pref-claude-title = Claude Settings
+pref-ollama-title = Ollama Settings
+pref-generic-title = Generic API Settings
+pref-chat-history =
+    .label = Enable chat history persistence
 pref-help = { $name } Build { $version } { $time }

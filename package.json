@@ -4,11 +4,11 @@
   "version": "3.1.0",
   "description": "Zotero Plugin Template",
   "config": {
-    "addonName": "Zotero Plugin Template",
-    "addonID": "addontemplate@euclpts.com",
-    "addonRef": "addontemplate",
-    "addonInstance": "AddonTemplate",
-    "prefsPrefix": "extensions.zotero.addontemplate"
+    "addonName": "Zotero AI Reader",
+    "addonID": "ai-reader@novak22.com",
+    "addonRef": "aiReader",
+    "addonInstance": "AddonAIReader",
+    "prefsPrefix": "extensions.zotero.aiReader"
   },
   "repository": {
     "type": "git",

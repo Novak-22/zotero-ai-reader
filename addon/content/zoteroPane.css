@@ -1,3 +1,163 @@
-.makeItRed {
-  background-color: tomato;
+/* AI Reader Panel Styles */
+.ai-panel-container {
+  padding: 8px;
+  height: 100%;
+  overflow: auto;
+  font-size: 13px;
+}
+
+/* TOC Panel */
+.ai-toc-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ai-toc-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border-color, #ccc);
+  font-weight: bold;
+}
+
+.ai-toc-refresh {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  padding: 4px;
+}
+
+.ai-toc-refresh:hover {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.ai-toc-list {
+  flex: 1;
+  overflow: auto;
+}
+
+.ai-toc-empty {
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.ai-toc-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  margin: 2px 4px;
+}
+
+.ai-toc-item:hover {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+.ai-toc-item.level-1 {
+  font-weight: bold;
+  padding-left: 8px;
+}
+
+.ai-toc-item.level-2 {
+  padding-left: 24px;
+}
+
+.ai-toc-item.level-3 {
+  padding-left: 40px;
+  font-size: 12px;
+}
+
+.ai-toc-icon {
+  margin-right: 6px;
+}
+
+/* Chat Panel */
+.ai-chat-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.ai-chat-messages {
+  flex: 1;
+  overflow: auto;
+  padding: 8px;
+}
+
+.ai-chat-empty {
+  color: #666;
+  text-align: center;
+  padding: 20px;
+}
+
+.ai-chat-message {
+  margin-bottom: 12px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  max-width: 90%;
+}
+
+.ai-chat-message.user {
+  background: #e3f2fd;
+  margin-left: auto;
+}
+
+.ai-chat-message.assistant {
+  background: #f5f5f5;
+  margin-right: auto;
+}
+
+.ai-chat-role {
+  font-size: 11px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.ai-chat-content {
+  line-height: 1.4;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+.ai-chat-input-area {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 8px;
+  border-top: 1px solid var(--border-color, #ccc);
+}
+
+.ai-chat-input-area textarea {
+  width: 100%;
+  resize: none;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  font-family: inherit;
+  font-size: 13px;
+}
+
+.ai-chat-input-area button {
+  align-self: flex-end;
+  padding: 6px 16px;
+  background: #0078d4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.ai-chat-input-area button:hover {
+  background: #006bb3;
+}
+
+.ai-chat-input-area button:disabled {
+  background: #ccc;
+  cursor: not-allowed;
 }

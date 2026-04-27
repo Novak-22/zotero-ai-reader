@@ -23,3 +23,6 @@ function defineGlobal(name: string, getter?: () => any) {
     },
   });
 }
+
+// Export types for modules
+export * from "./modules/types";

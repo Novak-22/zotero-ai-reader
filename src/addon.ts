@@ -1,5 +1,4 @@
 import { config } from "../package.json";
-import { ColumnOptions, DialogHelper } from "zotero-plugin-toolkit";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
 
@@ -7,7 +6,6 @@ class Addon {
   public data: {
     alive: boolean;
     config: typeof config;
-    // Env type, see build.js
     env: "development" | "production";
     initialized?: boolean;
     ztoolkit: ZToolkit;
@@ -16,14 +14,14 @@ class Addon {
     };
     prefs?: {
       window: Window;
-      columns: Array<ColumnOptions>;
-      rows: Array<{ [dataKey: string]: string }>;
     };
-    dialog?: DialogHelper;
+    reader?: {
+      currentItem: Zotero.Item | null;
+      toc: TOCItem[];
+      chatMessages: ChatMessage[];
+    };
   };
-  // Lifecycle hooks
   public hooks: typeof hooks;
-  // APIs
   public api: object;
 
   constructor() {
@@ -33,6 +31,11 @@ class Addon {
       env: __env__,
       initialized: false,
       ztoolkit: createZToolkit(),
+      reader: {
+        currentItem: null,
+        toc: [],
+        chatMessages: [],
+      },
     };
     this.hooks = hooks;
     this.api = {};
