@@ -7,8 +7,21 @@
 declare namespace _ZoteroTypes {
   interface Prefs {
     PluginPrefsMap: {
-      "enable": boolean;
-      "input": string;
+      "defaultProvider": string;
+      "apiKey.openai": string;
+      "endpoint.openai": string;
+      "model.openai": string;
+      "apiKey.claude": string;
+      "endpoint.claude": string;
+      "model.claude": string;
+      "apiKey.ollama": string;
+      "endpoint.ollama": string;
+      "model.ollama": string;
+      "apiKey.generic": string;
+      "endpoint.generic": string;
+      "model.generic": string;
+      "tocGenerated": boolean;
+      "chatHistoryEnabled": boolean;
     };
   }
 }

@@ -1,6 +1,7 @@
 import { config } from "../package.json";
 import hooks from "./hooks";
 import { createZToolkit } from "./utils/ztoolkit";
+import type { TOCItem, ChatMessage } from "./modules/types";
 
 class Addon {
   public data: {

@@ -32,7 +32,7 @@ export class GenericProvider extends BaseLLMProvider {
       throw new Error(`API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
 
     // Try common response formats
     return (

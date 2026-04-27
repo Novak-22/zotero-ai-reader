@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatSession } from "./types";
+import type { ChatMessage } from "../types";
 
 export class ChatStorage {
   private db: any;

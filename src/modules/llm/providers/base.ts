@@ -1,4 +1,4 @@
-import type { ChatMessage, LLMConfig } from "../types";
+import type { ChatMessage, LLMConfig } from "../../types";
 
 export interface LLMProvider {
   name: string;

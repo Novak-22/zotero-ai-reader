@@ -1,7 +1,7 @@
 import { OpenAIProvider } from "./providers/openai";
 import { OllamaProvider } from "./providers/ollama";
 import { GenericProvider } from "./providers/generic";
-import type { LLMProvider, ChatMessage, LLMConfig } from "./types";
+import type { LLMProvider, ChatMessage, LLMConfig } from "../../types";
 
 export class LLMService {
   private providers: Map<string, LLMProvider> = new Map();

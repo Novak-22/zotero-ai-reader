@@ -25,7 +25,7 @@ export class OllamaProvider extends BaseLLMProvider {
       throw new Error(`Ollama API error: ${response.status} - ${error}`);
     }
 
-    const data = await response.json();
+    const data: any = await response.json();
     return data.message?.content || "";
   }
 

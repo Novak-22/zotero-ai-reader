@@ -5,7 +5,7 @@ export class PDFService {
    * Extract text from a Zotero attachment item
    */
   async extractText(attachment: Zotero.Item): Promise<string> {
-    if (!attachment.isImAttachmentAttachment) {
+    if (!attachment.isImportedAttachment) {
       throw new Error("Item is not an attachment");
     }
 
