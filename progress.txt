@@ -3,28 +3,34 @@
 ## Completed
 
 - [x] 项目文档初始化
-  - PRD.md (产品需求)
-  - APP_FLOW.md (应用流程)
-  - TECH_STACK.md (技术栈)
-  - FRONTEND_GUIDELINES.md (前端指南)
-  - BACKEND_STRUCTURE.md (后端结构)
-  - IMPLEMENTATION_PLAN.md (实施计划)
-  - CLAUDE.md (项目指南)
-  - lessons.md (经验积累)
+  - PRD.md, APP_FLOW.md, TECH_STACK.md, FRONTEND_GUIDELINES.md, BACKEND_STRUCTURE.md, IMPLEMENTATION_PLAN.md, CLAUDE.md, lessons.md
+
+- [x] Phase 1: 基础框架 (Partially Complete)
+  - [x] 插件骨架搭建 (addon ID: ai-reader@novak22.com)
+  - [x] LLM服务层基础 (LLMService + 3 providers: OpenAI, Ollama, Generic)
+  - [x] PDF服务基础 (PDFService with text extraction + paragraph parsing)
+  - [x] 聊天服务基础 (ChatService + ChatStorage with SQLite)
+  - [x] UI框架 (TOCPanel + ReaderPaneSection registration)
+  - [ ] 偏好设置界面完善 (API key配置UI)
+
+- [x] Phase 2: PDF文本提取 + 目录生成 (Partial)
+  - [x] PDF文本提取 (pdfService.extractText)
+  - [x] 段落分割 (pdfService.parseParagraphs)
+  - [ ] AI TOC生成 (llmService.generateTOC)
+  - [ ] 目录点击跳转
 
 ## Progress
 
-- [ ] Phase 1: 基础框架
-  - [ ] 插件骨架搭建
-  - [ ] UI框架搭建 (ReaderPaneSection x2)
-  - [ ] LLM服务层基础
+当前构建有 Node.js 版本兼容性问题（Node v25 与 zotero-plugin-scaffold 0.8.2），需要修复后测试。
 
 ## Next
 
-- Phase 2: PDF文本提取 + 目录生成
-- Phase 3: 对话功能 + 历史持久化
-- Phase 4: 多LLM支持 + 优化
+1. 修复构建问题 (Node版本或scaffold升级)
+2. 测试 `npm start` 开发模式
+3. 完成 AI TOC 生成功能
+4. 完成右侧对话界面完整功能
+5. 测试 PDF 文本提取和段落分割
 
 ---
 
-Last Updated: 2026-04-26
+Last Updated: 2026-04-27

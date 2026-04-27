@@ -126,3 +126,37 @@ const db = new Zotero.DBConnection('ai-reader-plugin');
 <!-- Add lessons above, newest first -->
 <!-- Format: Pattern → Rule → Example -->
 <!-- Update CLAUDE.md reference if adding new sections -->
+
+### Lesson 8: Node.js Version Compatibility with zotero-plugin-scaffold
+
+**Pattern**: Build failed with `ERR_INVALID_ARG_VALUE` on 'format' with 'grey' color.
+
+**Rule**: zotero-plugin-scaffold 0.8.2 has compatibility issues with Node.js v25+. Use LTS version (v20.x or v22.x) for stable builds.
+
+**Fix**:
+```bash
+# Check Node version
+node --version
+# If v25+, switch to LTS version using nvm or volta
+nvm install 22
+nvm use 22
+```
+
+---
+
+### Lesson 9: Use npx for scaffold commands if not found in PATH
+
+**Pattern**: `zotero-plugin: command not found` even after npm install.
+
+**Rule**: Use `npx zotero-plugin <command>` to run scaffold from local node_modules.
+
+**Example**:
+```bash
+# Wrong
+npm start  # Uses global zotero-plugin which may not exist
+
+# Correct
+npx zotero-plugin serve
+# or
+npm run build  # if script uses npx internally
+```
