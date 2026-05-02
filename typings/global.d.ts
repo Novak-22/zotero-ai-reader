@@ -16,3 +16,8 @@ declare const rootURI: string;
 declare const addon: import("../src/addon").default;
 
 declare const __env__: "production" | "development";
+
+// DOM globals available in browser context
+declare const document: Document;
+declare const window: Window;
+declare function alert(message: string): void;

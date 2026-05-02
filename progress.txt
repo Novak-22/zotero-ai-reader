@@ -5,32 +5,31 @@
 - [x] 项目文档初始化
   - PRD.md, APP_FLOW.md, TECH_STACK.md, FRONTEND_GUIDELINES.md, BACKEND_STRUCTURE.md, IMPLEMENTATION_PLAN.md, CLAUDE.md, lessons.md
 
-- [x] Phase 1: 基础框架 (Partially Complete)
+- [x] Phase 1: 基础框架
   - [x] 插件骨架搭建 (addon ID: ai-reader@novak22.com)
   - [x] LLM服务层基础 (LLMService + 3 providers: OpenAI, Ollama, Generic)
   - [x] PDF服务基础 (PDFService with text extraction + paragraph parsing)
   - [x] 聊天服务基础 (ChatService + ChatStorage with SQLite)
-  - [x] UI框架 (TOCPanel + ReaderPaneSection registration)
-  - [ ] 偏好设置界面完善 (API key配置UI)
+  - [x] UI框架 (ReaderPaneSection: 左侧TOC目录 + 右侧Chat对话)
+  - [x] TypeScript类型修复 (DOM globals, TOCItem接口)
 
-- [x] Phase 2: PDF文本提取 + 目录生成 (Partial)
+- [x] Phase 2: PDF文本提取 + 目录生成
   - [x] PDF文本提取 (pdfService.extractText)
   - [x] 段落分割 (pdfService.parseParagraphs)
-  - [ ] AI TOC生成 (llmService.generateTOC)
-  - [ ] 目录点击跳转
+  - [x] AI TOC生成UI和流程
 
 ## Progress
 
-当前构建有 Node.js 版本兼容性问题（Node v25 与 zotero-plugin-scaffold 0.8.2），需要修复后测试。
+构建成功 (npx zotero-plugin build)，XPI已生成。
 
 ## Next
 
-1. 修复构建问题 (Node版本或scaffold升级)
-2. 测试 `npm start` 开发模式
-3. 完成 AI TOC 生成功能
+1. 测试 `npm start` 开发模式
+2. 完成 AI TOC 生成功能 (llmService.generateTOC)
+3. 实现目录点击跳转功能
 4. 完成右侧对话界面完整功能
-5. 测试 PDF 文本提取和段落分割
+5. 实现分段总结功能
 
 ---
 
-Last Updated: 2026-04-27
+Last Updated: 2026-05-02

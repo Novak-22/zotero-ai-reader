@@ -5,7 +5,7 @@ export interface ChatMessage {
 }
 
 export interface TOCItem {
-  id: string;
+  id?: string;
   title: string;
   level: number;
   page?: number;

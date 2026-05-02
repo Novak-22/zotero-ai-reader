@@ -58,7 +58,7 @@ function registerReaderSections(): void {
       setEnabled(tabType === "reader");
       if (item) {
         addon.data.reader!.currentItem = item;
-        const container = document.getElementById("ai-toc-container");
+        const container = document.getElementById("ai-toc-container") as HTMLElement;
         if (container) renderTOCPanel(container, item);
       }
       return true;
@@ -91,7 +91,7 @@ function registerReaderSections(): void {
       if (item) {
         const itemKey = `item_${item.id}`;
         await chatService.initSession(itemKey);
-        const container = document.getElementById("ai-chat-container");
+        const container = document.getElementById("ai-chat-container") as HTMLElement;
         if (container) renderChatUI(container);
       }
       return true;
@@ -103,7 +103,7 @@ function registerReaderSections(): void {
         l10nID: getLocaleID("ai-chat-clear-button"),
         onClick: async () => {
           await chatService.clearContext();
-          const container = document.getElementById("ai-chat-container");
+          const container = document.getElementById("ai-chat-container") as HTMLElement;
           if (container) renderChatUI(container);
         },
       },
@@ -150,8 +150,9 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
       throw new Error("No attachments found");
     }
 
-    const pdfAttachment = attachments.find(
-      (a: any) => a.attachmentContentType === "application/pdf"
+    const attachmentIds = await Zotero.Items.get(attachments);
+    const pdfAttachment = attachmentIds.find(
+      (a: Zotero.Item) => a.attachmentContentType === "application/pdf"
     );
     if (!pdfAttachment) {
       throw new Error("No PDF attachment found");
@@ -250,7 +251,7 @@ function renderChatUI(container: HTMLElement): void {
       sendBtn.setAttribute("disabled", "true");
       input.value = "";
       await chatService.sendMessage(text, selectedText, getDefaultProvider(), config);
-      const container = document.getElementById("ai-chat-container");
+      const container = document.getElementById("ai-chat-container") as HTMLElement;
       if (container) renderChatUI(container);
     } catch (error) {
       ztoolkit.log("Chat error:", error);
@@ -293,7 +294,7 @@ function getDefaultProvider(): string {
 function escapeHtml(text: string): string {
   const div = document.createElement("div");
   div.textContent = text;
-  return div.innerHTML;
+  return div.innerHTML as string;
 }
 
 function scrollToParagraph(index: number): void {
