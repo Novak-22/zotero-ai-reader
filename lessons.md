@@ -123,9 +123,189 @@ const db = new Zotero.DBConnection('ai-reader-plugin');
 
 ---
 
+---
+
+### Lesson 12: bootstrap.js rootURI Already Has Trailing Slash
+
+**Pattern**: `loadSubScript` silently fails to load the script, `Zotero.AddonInstance` stays `undefined`.
+
+**Rule**: `rootURI` in `bootstrap.js` already ends with `/`. Do NOT add another `/` before `content/`. Double slashes (`//`) cause the URI to fail silently with no error.
+
+**Example**:
+```javascript
+// Wrong - double slash causes silent failure
+Services.scriptloader.loadSubScript(`${rootURI}/content/scripts/addon.js`, ctx);
+
+// Correct
+Services.scriptloader.loadSubScript(`${rootURI}content/scripts/addon.js`, ctx);
+```
+
+---
+
+### Lesson 13: src/index.ts Must Assign Instance, Not Class
+
+**Pattern**: `Zotero.AddonInstance` is `undefined` even after script loads successfully.
+
+**Rule**: In `src/index.ts`, `Zotero[config.addonInstance]` must be assigned the **instance** (`_globalThis.addon`), not the class (`addon` / `addon_default`). The class and the instance variable share the same name in the compiled output, causing a subtle bug.
+
+**Example**:
+```typescript
+// Wrong - assigns the class constructor
+Zotero[config.addonInstance] = addon;
+
+// Correct - assigns the created instance
+Zotero[config.addonInstance] = _globalThis.addon;
+```
+
+---
+
+### Lesson 14: Module-Level Singletons That Use Zotero APIs Crash on Load
+
+**Pattern**: Script throws `ReferenceError: ztoolkit is not defined` or `Zotero.DBConnection is not a constructor` at load time.
+
+**Rule**: Never instantiate singletons at module top-level if their constructor calls Zotero APIs (`Zotero.DBConnection`, `ztoolkit.log`, etc.). These APIs are not available when the script is first parsed. Use lazy initialization: defer the constructor work until the first method call.
+
+**Example**:
+```typescript
+// Wrong - constructor runs at module parse time, before Zotero is ready
+export class ChatStorage {
+  constructor() {
+    this.db = new Zotero.DBConnection("ai-reader"); // crashes
+  }
+}
+export const chatStorage = new ChatStorage(); // top-level singleton
+
+// Correct - defer DB creation to first use
+export class ChatStorage {
+  constructor() {} // no Zotero calls here
+  private initDatabase() {
+    if (this.db) return;
+    this.db = new Zotero.DBConnection("ai-reader"); // safe, called lazily
+  }
+  async saveMessage(...) {
+    this.initDatabase(); // initialize on first use
+    ...
+  }
+}
+```
+
+---
+
+### Lesson 15: registerSection Requires onRender (Not Optional)
+
+**Pattern**: `registerSection` call is silently ignored; `customSectionData.options` stays empty.
+
+**Rule**: `Zotero.ItemPaneManager.registerSection()` requires `onRender` as a **mandatory** field. Omitting it causes the registration to fail silently — no error, no section. Always provide `onRender` even if it just calls the same logic as `onInit`.
+
+**Example**:
+```typescript
+// Wrong - missing onRender, section never appears
+Zotero.ItemPaneManager.registerSection({
+  paneID: "my-section",
+  pluginID: "...",
+  header: { ... },
+  sidenav: { ... },
+  onInit: ({ body, item }) => { render(body, item); },
+});
+
+// Correct - onRender is required
+Zotero.ItemPaneManager.registerSection({
+  paneID: "my-section",
+  pluginID: "...",
+  header: { ... },
+  sidenav: { ... },
+  onRender: ({ body, item }) => { render(body, item); }, // required!
+  onInit: ({ body, item }) => { render(body, item); },
+});
+```
+
 <!-- Add lessons above, newest first -->
 <!-- Format: Pattern → Rule → Example -->
 <!-- Update CLAUDE.md reference if adding new sections -->
+
+### Lesson 12: `Zotero[addonInstance]` Must Be Assigned the Instance, Not the Class
+
+**Pattern**: `Zotero.AddonAIReader` returned `undefined` even after the script loaded.
+
+**Rule**: In `src/index.ts`, `Zotero[config.addonInstance]` must be assigned `_globalThis.addon` (the instance), not `addon` (which resolves to the class `addon_default` after bundling).
+
+**Example**:
+```typescript
+// Wrong - assigns the class constructor
+Zotero[config.addonInstance] = addon;
+
+// Correct - assigns the instance
+_globalThis.addon = new Addon();
+Zotero[config.addonInstance] = _globalThis.addon;
+```
+
+---
+
+### Lesson 13: `bootstrap.js` `rootURI` Already Has Trailing Slash
+
+**Pattern**: `Services.scriptloader.loadSubScript` silently failed to load the script.
+
+**Rule**: `rootURI` passed to `startup()` already ends with `/`. Adding another `/` creates a double-slash path (`jar:file:///...addon//content/...`) which fails silently.
+
+**Example**:
+```javascript
+// Wrong - double slash
+Services.scriptloader.loadSubScript(`${rootURI}/content/scripts/addon.js`, ctx);
+
+// Correct
+Services.scriptloader.loadSubScript(`${rootURI}content/scripts/addon.js`, ctx);
+```
+
+---
+
+### Lesson 14: Module-Level Singletons That Call Zotero APIs Crash Script Load
+
+**Pattern**: `ReferenceError: ztoolkit is not defined` when loading the plugin script.
+
+**Rule**: Never instantiate classes at module top-level if their constructors call Zotero APIs (`Zotero.DBConnection`, `ztoolkit.log`, etc.). At script load time, `ztoolkit` and `Zotero` may not be fully ready. Use lazy initialization — defer construction to the first method call or to `onStartup`.
+
+**Example**:
+```typescript
+// Wrong - constructor runs at module load time, before ztoolkit exists
+export const chatStorage = new ChatStorage(); // ChatStorage() calls Zotero.DBConnection
+
+// Correct - defer DB init to first use
+constructor() { /* do nothing */ }
+private initDatabase() {
+  if (this.db) return;
+  this.db = new Zotero.DBConnection("ai-reader-chat");
+}
+async saveMessage(...) {
+  this.initDatabase(); // lazy init here
+  ...
+}
+```
+
+---
+
+### Lesson 15: `registerSection` Requires `onRender` (Not Optional)
+
+**Pattern**: `Zotero.ItemPaneManager.customSectionData.options` was empty — sections never registered.
+
+**Rule**: `Zotero.ItemPaneManager.registerSection()` silently rejects registrations missing required fields. `onRender` is **required** (no `optional: true` in the type definition). Always provide it even if `onInit` handles the real work.
+
+**Example**:
+```typescript
+// Wrong - missing onRender, registration silently fails
+Zotero.ItemPaneManager.registerSection({
+  paneID: "my-section",
+  onInit: ({ body }) => { ... },
+  ...
+});
+
+// Correct
+Zotero.ItemPaneManager.registerSection({
+  paneID: "my-section",
+  onRender: ({ body, item }) => { /* required */ },
+  onInit: ({ body, item }) => { ... },
+  ...
+});
+```
 
 ### Lesson 10: TypeScript Relative Import Paths in Modules
 

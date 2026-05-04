@@ -10,26 +10,43 @@
   - [x] LLM服务层基础 (LLMService + 3 providers: OpenAI, Ollama, Generic)
   - [x] PDF服务基础 (PDFService with text extraction + paragraph parsing)
   - [x] 聊天服务基础 (ChatService + ChatStorage with SQLite)
-  - [x] UI框架 (ReaderPaneSection: 左侧TOC目录 + 右侧Chat对话)
+  - [x] UI框架 (ItemPaneManager sections: AI TOC + AI Chat)
   - [x] TypeScript类型修复 (DOM globals, TOCItem接口)
 
-- [x] Phase 2: PDF文本提取 + 目录生成
-  - [x] PDF文本提取 (pdfService.extractText)
-  - [x] 段落分割 (pdfService.parseParagraphs)
-  - [x] AI TOC生成UI和流程
+- [x] Phase 2: 插件成功加载
+  - [x] 修复 src/index.ts: Zotero[addonInstance] 赋值实例而非类
+  - [x] 修复 bootstrap.js: rootURI 已有尾部斜杠，去掉多余的 /
+  - [x] 修复 ChatStorage: 构造函数不调用 Zotero API，改为懒加载
+  - [x] 修复 registerSection: 补充必填的 onRender 回调
+  - [x] 验证: Zotero.AddonAIReader.data.initialized === true
+  - [x] 验证: AI TOC 和 AI Chat 两个 section 在 item pane 中可见
 
-## Progress
+## Current State (2026-05-04)
 
-构建成功 (npx zotero-plugin build)，XPI已生成。
+插件已成功加载并在 Zotero item pane 中显示两个 section：
+- **AI TOC**: 显示 "AI 目录 ↺ 点击按钮生成目录"（按钮存在但功能未接通）
+- **AI Chat**: 显示 "Select text in PDF and ask questions Send"（UI 存在但功能未接通）
 
-## Next
+## Next Steps
 
-1. 测试 `npm start` 开发模式
-2. 完成 AI TOC 生成功能 (llmService.generateTOC)
-3. 实现目录点击跳转功能
-4. 完成右侧对话界面完整功能
-5. 实现分段总结功能
+1. **AI TOC 功能接通**
+   - 点击生成按钮 → 调用 PDFService 提取文本 → 调用 LLMService 生成目录
+   - 目录条目点击跳转到 PDF 对应页面
+
+2. **AI Chat 功能接通**
+   - 配置 LLM API Key（设置界面）
+   - 发送消息 → 调用 LLMService → 显示回复
+   - 支持选中 PDF 文本作为上下文
+
+3. **设置界面**
+   - LLM provider 选择 (OpenAI / Ollama / Generic)
+   - API Key 输入
+   - Model 名称配置
+
+4. **稳定性**
+   - 错误处理和用户提示
+   - 多 item 切换时的状态管理
 
 ---
 
-Last Updated: 2026-05-02
+Last Updated: 2026-05-04
