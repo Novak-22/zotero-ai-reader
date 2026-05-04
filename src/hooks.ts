@@ -39,22 +39,23 @@ function registerReaderSections(): void {
     paneID: "ai-reader-toc",
     pluginID: addon.data.config.addonID,
     header: {
-      l10nID: getLocaleID("ai-toc-header"),
-      icon: "chrome://zotero/skin/16/universal/book.svg",
+      l10nArgs: `{"label": "AI 目录"}`,
     },
     sidenav: {
-      l10nID: getLocaleID("ai-toc-sidenav-tooltip"),
-      icon: "chrome://zotero/skin/20/universal/book.svg",
+      l10nArgs: `{"label": "AI 目录", "icon": "chrome://zotero/skin/16/universal/book.svg"}`,
+      icon: "chrome://zotero/skin/16/universal/book.svg",
     },
     bodyXHTML:
       '<html:div id="ai-toc-container" class="ai-panel-container"/>',
     onInit: ({ body, item }) => {
+      ztoolkit.log("AI TOC section init", item?.id);
       if (item) {
         addon.data.reader!.currentItem = item;
         renderTOCPanel(body as HTMLElement, item);
       }
     },
     onItemChange: ({ item, setEnabled, tabType }) => {
+      ztoolkit.log("AI TOC onItemChange", tabType, item?.id);
       setEnabled(tabType === "reader");
       if (item) {
         addon.data.reader!.currentItem = item;
@@ -70,16 +71,16 @@ function registerReaderSections(): void {
     paneID: "ai-reader-chat",
     pluginID: addon.data.config.addonID,
     header: {
-      l10nID: getLocaleID("ai-chat-header"),
-      icon: "chrome://zotero/skin/16/universal/chat.svg",
+      l10nArgs: `{"label": "AI 对话"}`,
     },
     sidenav: {
-      l10nID: getLocaleID("ai-chat-sidenav-tooltip"),
-      icon: "chrome://zotero/skin/20/universal/chat.svg",
+      l10nArgs: `{"label": "AI 对话", "icon": "chrome://zotero/skin/16/universal/chat.svg"}`,
+      icon: "chrome://zotero/skin/16/universal/chat.svg",
     },
     bodyXHTML:
       '<html:div id="ai-chat-container" class="ai-panel-container"/>',
     onInit: async ({ body, item }) => {
+      ztoolkit.log("AI Chat section init", item?.id);
       if (item) {
         const itemKey = `item_${item.id}`;
         await chatService.initSession(itemKey);
@@ -87,6 +88,7 @@ function registerReaderSections(): void {
       }
     },
     onItemChange: async ({ item, setEnabled, tabType }) => {
+      ztoolkit.log("AI Chat onItemChange", tabType, item?.id);
       setEnabled(tabType === "reader");
       if (item) {
         const itemKey = `item_${item.id}`;
@@ -100,7 +102,7 @@ function registerReaderSections(): void {
       {
         type: "clear",
         icon: "chrome://zotero/skin/16/universal/empty-trash.svg",
-        l10nID: getLocaleID("ai-chat-clear-button"),
+        l10nArgs: `{"label": "清空"}`,
         onClick: async () => {
           await chatService.clearContext();
           const container = document.getElementById("ai-chat-container") as HTMLElement;
