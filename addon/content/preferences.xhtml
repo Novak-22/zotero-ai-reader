@@ -9,14 +9,13 @@
     <html:label for="default-provider" data-l10n-id="pref-default-provider"></html:label>
     <html:select id="default-provider" preference="defaultProvider">
       <html:option value="openai">OpenAI</html:option>
-      <html:option value="claude">Claude</html:option>
       <html:option value="ollama">Ollama</html:option>
       <html:option value="generic">Generic API</html:option>
     </html:select>
   </hbox>
 
   <!-- OpenAI Settings -->
-  <groupbox>
+  <groupbox id="provider-group-openai">
     <caption><label data-l10n-id="pref-openai-title"></label></caption>
     <hbox>
       <html:label for="api-key-openai" data-l10n-id="pref-api-key"></html:label>
@@ -28,21 +27,9 @@
     </hbox>
   </groupbox>
 
-  <!-- Claude Settings -->
-  <groupbox>
-    <caption><label data-l10n-id="pref-claude-title"></label></caption>
-    <hbox>
-      <html:label for="api-key-claude" data-l10n-id="pref-api-key"></html:label>
-      <html:input type="password" id="api-key-claude" preference="apiKey.claude" style="width: 300px;"/>
-    </hbox>
-    <hbox>
-      <html:label for="model-claude" data-l10n-id="pref-model"></html:label>
-      <html:input type="text" id="model-claude" preference="model.claude"/>
-    </hbox>
-  </groupbox>
 
   <!-- Ollama Settings -->
-  <groupbox>
+  <groupbox id="provider-group-ollama">
     <caption><label data-l10n-id="pref-ollama-title"></label></caption>
     <hbox>
       <html:label for="endpoint-ollama" data-l10n-id="pref-endpoint"></html:label>
@@ -55,7 +42,7 @@
   </groupbox>
 
   <!-- Generic API Settings -->
-  <groupbox>
+  <groupbox id="provider-group-generic">
     <caption><label data-l10n-id="pref-generic-title"></label></caption>
     <hbox>
       <html:label for="api-key-generic" data-l10n-id="pref-api-key"></html:label>
@@ -70,6 +57,8 @@
       <html:input type="text" id="model-generic" preference="model.generic"/>
     </hbox>
   </groupbox>
+
+  <html:label id="provider-config-hint" style="color: #d97706; margin-top: 8px;"></html:label>
 
   <checkbox id="chat-history-enabled" preference="chatHistoryEnabled" data-l10n-id="pref-chat-history"/>
 </groupbox>

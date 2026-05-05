@@ -1,9 +1,19 @@
 import { getString, getLocaleID, initLocale } from "./utils/locale";
+import { registerPrefsScripts } from "./modules/preferenceScript";
 import { createZToolkit } from "./utils/ztoolkit";
 import { llmService } from "./modules/llm/LLMService";
 import { pdfService } from "./modules/pdf/PDFService";
 import { chatService } from "./modules/chat/ChatService";
 import type { LLMConfig } from "./modules/types";
+
+// Module-level cache for config values (since Zotero.Prefs doesn't work in sandbox)
+let cachedConfig: {
+  prefsPrefix: string;
+  defaultProvider: string;
+  apiKey_generic: string;
+  endpoint_generic: string;
+  model_generic: string;
+} | null = null;
 
 async function onStartup() {
   await Promise.all([
@@ -13,6 +23,16 @@ async function onStartup() {
   ]);
 
   initLocale();
+
+  // Cache config values at startup (before sandboxed contexts run)
+  cachedConfig = {
+    prefsPrefix: addon.data.config.prefsPrefix,
+    defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
+    apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
+    endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
+    model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
+  };
+  ztoolkit.log("Cached config:", JSON.stringify(cachedConfig));
 
   // Register preferences pane
   Zotero.PreferencePanes.register({
@@ -39,14 +59,18 @@ function registerReaderSections(): void {
     paneID: "ai-reader-toc",
     pluginID: addon.data.config.addonID,
     header: {
-      l10nArgs: `{"label": "AI 目录"}`,
+      l10nID: getLocaleID("ai-reader-toc-header"),
+      icon: "chrome://zotero/skin/16/universal/book.svg",
     },
     sidenav: {
-      l10nArgs: `{"label": "AI 目录", "icon": "chrome://zotero/skin/16/universal/book.svg"}`,
+      l10nID: getLocaleID("ai-reader-toc-sidenav"),
       icon: "chrome://zotero/skin/16/universal/book.svg",
     },
     bodyXHTML:
       '<html:div id="ai-toc-container" class="ai-panel-container"/>',
+    onRender: ({ body, item }) => {
+      if (item) renderTOCPanel(body as HTMLElement, item);
+    },
     onInit: ({ body, item }) => {
       ztoolkit.log("AI TOC section init", item?.id);
       if (item) {
@@ -64,6 +88,34 @@ function registerReaderSections(): void {
       }
       return true;
     },
+    sectionButtons: [
+      {
+        type: "refresh",
+        icon: "chrome://zotero/skin/16/universal/refresh.svg",
+        l10nID: getLocaleID("ai-reader-toc-refresh-button"),
+        onClick: async ({ item, body }) => {
+          ztoolkit.log("TOC BUTTON CLICKED at last!");
+          if (item && body) {
+            // Update cache from current Zotero.Prefs before calling generateTOC
+            try {
+              cachedConfig = {
+                prefsPrefix: addon.data.config.prefsPrefix,
+                defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
+                apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
+                endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
+                model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
+              };
+              ztoolkit.log("Updated cache from prefs:", JSON.stringify(cachedConfig));
+            } catch (e) {
+              ztoolkit.log("Failed to update cache:", e);
+            }
+            await generateTOC(body as HTMLElement, item);
+          } else {
+            ztoolkit.log("item or body missing!", { item, body });
+          }
+        },
+      },
+    ],
   });
 
   // Right panel - AI Chat
@@ -71,14 +123,18 @@ function registerReaderSections(): void {
     paneID: "ai-reader-chat",
     pluginID: addon.data.config.addonID,
     header: {
-      l10nArgs: `{"label": "AI 对话"}`,
+      l10nID: getLocaleID("ai-reader-chat-header"),
+      icon: `chrome://${addon.data.config.addonRef}/content/icons/ai-chat.svg`,
     },
     sidenav: {
-      l10nArgs: `{"label": "AI 对话", "icon": "chrome://zotero/skin/16/universal/chat.svg"}`,
-      icon: "chrome://zotero/skin/16/universal/chat.svg",
+      l10nID: getLocaleID("ai-reader-chat-sidenav"),
+      icon: "chrome://zotero/skin/20/universal/chat.svg",
     },
     bodyXHTML:
       '<html:div id="ai-chat-container" class="ai-panel-container"/>',
+    onRender: ({ body }) => {
+      renderChatUI(body as HTMLElement);
+    },
     onInit: async ({ body, item }) => {
       ztoolkit.log("AI Chat section init", item?.id);
       if (item) {
@@ -102,7 +158,7 @@ function registerReaderSections(): void {
       {
         type: "clear",
         icon: "chrome://zotero/skin/16/universal/empty-trash.svg",
-        l10nArgs: `{"label": "清空"}`,
+        l10nID: getLocaleID("ai-reader-clear-button"),
         onClick: async () => {
           await chatService.clearContext();
           const container = document.getElementById("ai-chat-container") as HTMLElement;
@@ -115,24 +171,25 @@ function registerReaderSections(): void {
 
 function renderTOCPanel(container: HTMLElement, item: Zotero.Item): void {
   container.innerHTML = `
-    <div class="ai-toc-container">
-      <div class="ai-toc-header">
-        <span>AI 目录</span>
-        <button class="ai-toc-refresh" id="toc-refresh-btn" title="Generate TOC">⟳</button>
-      </div>
-      <div class="ai-toc-list" id="toc-list">
-        <div class="ai-toc-empty">点击按钮生成目录</div>
-      </div>
-    </div>
+    <html:div class="ai-toc-container">
+      <html:div class="ai-toc-header">
+        <html:span>AI 目录</html:span>
+        <html:button class="ai-toc-refresh" id="toc-refresh-btn" title="生成目录">⟳</html:button>
+      </html:div>
+      <html:div class="ai-toc-list" id="toc-list">
+        <html:div class="ai-toc-empty">点击按钮生成目录</html:div>
+      </html:div>
+    </html:div>
   `;
 
-  const refreshBtn = document.getElementById("toc-refresh-btn");
+  const refreshBtn = container.querySelector("#toc-refresh-btn") as HTMLButtonElement | null;
   refreshBtn?.addEventListener("click", async () => {
     await generateTOC(container, item);
   });
 }
 
 async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<void> {
+  ztoolkit.log("generateTOC called, container:", container?.id, container?.childNodes.length);
   const listEl = container.querySelector("#toc-list");
   if (listEl) listEl.innerHTML = '<div class="ai-toc-empty">生成中...</div>';
 
@@ -142,10 +199,24 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
 
   try {
     progressWindow.createLine({
-      text: "Extracting PDF text...",
+      text: "读取配置...",
       type: "default",
-      progress: 20,
+      progress: 5,
     });
+
+    // Update cache from prefs
+    cachedConfig = {
+      prefsPrefix: addon.data.config.prefsPrefix,
+      defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
+      apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
+      endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
+      model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
+    };
+    progressWindow.changeLine({ progress: 10, text: `Provider: ${cachedConfig.defaultProvider}, API Key: ${cachedConfig.apiKey_generic ? "已设置" : "未设置"}` });
+
+    const provider = getDefaultProvider();
+    const config = getLLMConfig();
+    progressWindow.changeLine({ progress: 15, text: `Provider: ${provider}, API Key: ${config.apiKey ? "已设置" : "空"}` });
 
     const attachments = await item.getAttachments();
     if (!attachments || attachments.length === 0) {
@@ -163,32 +234,61 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
     progressWindow.changeLine({ progress: 40, text: "Parsing paragraphs..." });
     const text = await pdfService.extractText(pdfAttachment);
     const paragraphs = pdfService.parseParagraphs(text);
+    if (!paragraphs.length) {
+      throw new Error("No valid paragraphs extracted from PDF");
+    }
 
     progressWindow.changeLine({ progress: 60, text: "Generating TOC with AI..." });
 
+    const provider = getDefaultProvider();
     const config = getLLMConfig();
+    ztoolkit.log("TOC generateTOC step 1 - provider:", provider, "config.apiKey:", config.apiKey ? "SET" : "EMPTY", "config.endpoint:", config.endpoint);
+    const configError = validateLLMConfig(provider, config);
+    ztoolkit.log("TOC configError:", configError);
+    if (configError) {
+      if (listEl) listEl.innerHTML = `<div class="ai-toc-empty">${escapeHtml(configError)}</div>`;
+      return;
+    }
+
+    ztoolkit.log("TOC calling llmService.generateTOC...");
     const tocItems = await llmService.generateTOC(
-      getDefaultProvider(),
+      provider,
       paragraphs.map((p) => p.text),
       config
     );
 
-    addon.data.reader!.toc = tocItems;
+    const normalizedTOCItems = tocItems
+      .map((tocItem: any) => {
+        const rawIndex = Number(tocItem.paragraphIndex);
+        const zeroBasedIndex = Number.isFinite(rawIndex)
+          ? Math.max(0, rawIndex > 0 ? rawIndex - 1 : rawIndex)
+          : 0;
+        const paragraph = paragraphs[zeroBasedIndex];
+        return {
+          ...tocItem,
+          paragraphIndex: zeroBasedIndex,
+          page: paragraph?.page,
+        };
+      })
+      .filter((tocItem: any) => typeof tocItem.title === "string" && tocItem.title.trim());
+
+    addon.data.reader!.toc = normalizedTOCItems;
 
     progressWindow.changeLine({ progress: 100, text: "TOC generated!" });
     progressWindow.startCloseTimer(2000);
 
     if (listEl) {
-      if (tocItems.length === 0) {
+      if (normalizedTOCItems.length === 0) {
         listEl.innerHTML = '<div class="ai-toc-empty">无法生成目录</div>';
       } else {
-        listEl.innerHTML = tocItems
+        listEl.innerHTML = normalizedTOCItems
           .map(
             (item: any) => `
-          <div class="ai-toc-item level-${item.level}" data-paragraph-index="${item.paragraphIndex}">
-            <span class="ai-toc-icon">${item.level === 1 ? "📄" : "📃"}</span>
-            <span class="ai-toc-title">${escapeHtml(item.title)}</span>
-          </div>
+          <html:div class="ai-toc-item level-${item.level}" data-paragraph-index="${item.paragraphIndex}" data-page="${item.page || ""}">
+            <html:span class="ai-toc-icon">${item.level === 1 ? "📄" : "📃"}</html:span>
+            <html:span class="ai-toc-title">${escapeHtml(item.title)}</html:span>
+            ${item.page ? `<html:span class="ai-toc-page">P${item.page}</html:span>` : ""}
+          </html:div>
         `
           )
           .join("");
@@ -196,6 +296,11 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
         listEl.querySelectorAll(".ai-toc-item").forEach((el: Element) => {
           el.addEventListener("click", () => {
             const idx = el.getAttribute("data-paragraph-index");
+            const page = el.getAttribute("data-page");
+            if (page && Number.isFinite(Number(page))) {
+              navigateToPDFPage(Number(page));
+              return;
+            }
             if (idx) scrollToParagraph(parseInt(idx));
           });
         });
@@ -211,35 +316,36 @@ function renderChatUI(container: HTMLElement): void {
   const messages = chatService.getContext();
 
   container.innerHTML = `
-    <div class="ai-chat-container">
-      <div class="ai-chat-messages" id="chat-messages">
+    <html:div class="ai-chat-container">
+      <html:div class="ai-chat-messages" id="chat-messages">
         ${
           messages.length === 0
-            ? '<div class="ai-chat-empty">Select text in PDF and ask questions</div>'
+            ? '<html:div class="ai-chat-empty">Select text in PDF and ask questions</html:div>'
             : messages
                 .map(
                   (m) => `
-            <div class="ai-chat-message ${m.role}">
-              <div class="ai-chat-role">${m.role === "user" ? "You" : "AI"}</div>
-              <div class="ai-chat-content">${escapeHtml(m.content)}</div>
-            </div>
+            <html:div class="ai-chat-message ${m.role}">
+              <html:div class="ai-chat-role">${m.role === "user" ? "You" : "AI"}</html:div>
+              <html:div class="ai-chat-content">${escapeHtml(m.content)}</html:div>
+            </html:div>
           `
                 )
                 .join("")
         }
-      </div>
-      <div class="ai-chat-input-area">
-        <textarea id="chat-input" placeholder="Ask about selected text..." rows="2"></textarea>
-        <button id="chat-send-btn">Send</button>
-      </div>
-    </div>
+      </html:div>
+      <html:div class="ai-chat-input-area">
+        <html:textarea id="chat-input" placeholder="Ask about selected text..." rows="2"></html:textarea>
+        <html:input id="chat-send-btn" type="button" value="Send" />
+      </html:div>
+    </html:div>
   `;
 
-  const sendBtn = document.getElementById("chat-send-btn");
-  const input = document.getElementById("chat-input") as HTMLTextAreaElement;
+  const sendBtn = container.querySelector("#chat-send-btn") as HTMLButtonElement | null;
+  const input = container.querySelector("#chat-input") as HTMLTextAreaElement | null;
 
   sendBtn?.addEventListener("click", async () => {
-    const text = input?.value?.trim();
+    if (!input) return;
+    const text = input.value?.trim();
     if (!text) return;
 
     const selectedText = getSelectedPDFText();
@@ -248,13 +354,18 @@ function renderChatUI(container: HTMLElement): void {
       return;
     }
 
+    const provider = getDefaultProvider();
     const config = getLLMConfig();
+    const configError = validateLLMConfig(provider, config);
+    if (configError) {
+      alert(configError);
+      return;
+    }
     try {
       sendBtn.setAttribute("disabled", "true");
       input.value = "";
-      await chatService.sendMessage(text, selectedText, getDefaultProvider(), config);
-      const container = document.getElementById("ai-chat-container") as HTMLElement;
-      if (container) renderChatUI(container);
+      await chatService.sendMessage(text, selectedText, provider, config);
+      renderChatUI(container);
     } catch (error) {
       ztoolkit.log("Chat error:", error);
       alert(`Error: ${error}`);
@@ -279,24 +390,120 @@ function getSelectedPDFText(): string {
 
 function getLLMConfig(): LLMConfig {
   const provider = getDefaultProvider();
+  // Try fresh read of prefs
+  try {
+    const apiKey = Zotero.Prefs.get("extensions.zotero.aiReader.apiKey." + provider);
+    const endpoint = Zotero.Prefs.get("extensions.zotero.aiReader.endpoint." + provider);
+    const model = Zotero.Prefs.get("extensions.zotero.aiReader.model." + provider);
+    ztoolkit.log("getLLMConfig fresh read - apiKey:", apiKey ? "SET" : "EMPTY", "endpoint:", endpoint);
+    if (apiKey !== undefined || endpoint !== undefined || model !== undefined) {
+      return {
+        provider: provider as LLMConfig["provider"],
+        apiKey: (apiKey as string) || cachedConfig?.apiKey_generic || "",
+        endpoint: (endpoint as string) || cachedConfig?.endpoint_generic || "",
+        model: (model as string) || cachedConfig?.model_generic || "",
+        temperature: 0.7,
+        maxTokens: 2048,
+      };
+    }
+  } catch (e) {
+    ztoolkit.log("getLLMConfig fresh read failed:", e);
+  }
+  // Fall back to cache
+  ztoolkit.log("getLLMConfig using cache, provider:", provider, "cache:", JSON.stringify(cachedConfig));
   return {
     provider: provider as LLMConfig["provider"],
-    apiKey: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.${provider}`) as string,
-    endpoint: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.${provider}`) as string,
-    model: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.${provider}`) as string,
+    apiKey: cachedConfig?.apiKey_generic || "",
+    endpoint: cachedConfig?.endpoint_generic || "",
+    model: cachedConfig?.model_generic || "",
     temperature: 0.7,
     maxTokens: 2048,
   };
 }
 
+// Check if cached config has stale values by checking if a prefs update happened
 function getDefaultProvider(): string {
-  return (Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string) || "openai";
+  // Re-read from Zotero.Prefs at call time if possible, otherwise use cache
+  try {
+    const currentPref = Zotero.Prefs.get("extensions.zotero.aiReader.defaultProvider");
+    if (currentPref && typeof currentPref === "string") {
+      ztoolkit.log("getDefaultProvider fresh read:", currentPref);
+      return currentPref;
+    }
+  } catch (e) {
+    ztoolkit.log("getDefaultProvider fresh read failed:", e);
+  }
+  return cachedConfig?.defaultProvider || "openai";
+}
+
+function validateLLMConfig(provider: string, config: LLMConfig): string | null {
+  if (provider === "openai" && !config.apiKey?.trim()) {
+    return "OpenAI API key is required. Please set it in plugin preferences.";
+  }
+
+  if (provider === "generic") {
+    if (!config.apiKey?.trim()) {
+      return "Generic API key is required. Please set it in plugin preferences.";
+    }
+    if (!config.endpoint?.trim()) {
+      return "Generic API endpoint is required. Please set it in plugin preferences.";
+    }
+  }
+
+  return null;
 }
 
 function escapeHtml(text: string): string {
-  const div = document.createElement("div");
-  div.textContent = text;
-  return div.innerHTML as string;
+  return text
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
+}
+
+function navigateToPDFPage(page: number): void {
+  if (!Number.isFinite(page) || page < 1) return;
+
+  try {
+    const mainWindow = (Zotero as any).getMainWindow?.();
+    const integration = mainWindow?.Zotero_Reader_Integration;
+    const reader = integration?.getReader?.();
+
+    if (!reader) {
+      return;
+    }
+
+    if (typeof reader.navigate === "function") {
+      reader.navigate({ pageIndex: page - 1 });
+      return;
+    }
+
+    if (typeof reader.gotoPage === "function") {
+      reader.gotoPage(page);
+      return;
+    }
+
+    if (typeof reader.scrollToPage === "function") {
+      reader.scrollToPage(page - 1);
+      return;
+    }
+
+    if (typeof reader.setPage === "function") {
+      reader.setPage(page - 1);
+      return;
+    }
+
+    const internalReader = reader._internalReader || reader._reader;
+    if (internalReader?.setPageNumber) {
+      internalReader.setPageNumber(page);
+      return;
+    }
+
+    scrollToParagraph(page - 1);
+  } catch (error) {
+    ztoolkit.log("Failed to navigate PDF page:", error);
+  }
 }
 
 function scrollToParagraph(index: number): void {
@@ -337,6 +544,7 @@ async function onPrefsEvent(type: string, data: { [key: string]: any }) {
   switch (type) {
     case "load":
       ztoolkit.log("Loading preference scripts");
+      await registerPrefsScripts(data.window as Window);
       break;
     default:
       break;

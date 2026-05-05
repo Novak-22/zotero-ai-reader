@@ -1,7 +1,7 @@
 import { getLocaleID } from "../../utils/locale";
 import { pdfService } from "../pdf/PDFService";
 import { llmService } from "../llm/LLMService";
-import type { TOCItem, LLMConfig } from "../../types";
+import type { TOCItem, LLMConfig } from "../types";
 
 export class TOCPanel {
   private container: HTMLElement | null = null;
@@ -34,7 +34,8 @@ export class TOCPanel {
         throw new Error("No attachments found");
       }
 
-      const pdfAttachment = attachments.find(
+      const attachmentItems = await Zotero.Items.get(attachments);
+      const pdfAttachment = attachmentItems.find(
         (a: Zotero.Item) => a.attachmentContentType === "application/pdf"
       );
       if (!pdfAttachment) {
@@ -91,7 +92,7 @@ export class TOCPanel {
     `;
 
     // Add click handlers
-    this.container.querySelectorAll(".ai-toc-item").forEach((el) => {
+    this.container.querySelectorAll(".ai-toc-item").forEach((el: Element) => {
       el.addEventListener("click", () => {
         const paragraphIndex = el.getAttribute("data-paragraph-index");
         if (paragraphIndex !== null) {

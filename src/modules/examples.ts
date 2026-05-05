@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { getLocaleID, getString } from "../utils/locale";
 
 function example(

@@ -13,7 +13,7 @@ export interface TOCItem {
 }
 
 export interface LLMConfig {
-  provider: "openai" | "claude" | "ollama" | "generic";
+  provider: "openai" | "ollama" | "generic";
   apiKey?: string;
   endpoint?: string;
   model?: string;
@@ -32,4 +32,8 @@ export interface ChatSession {
   messages: ChatMessage[];
   createdAt: number;
   updatedAt: number;
+}
+export interface LLMProvider {
+  name: string;
+  chat(messages: ChatMessage[], config: LLMConfig): Promise<string>;
 }

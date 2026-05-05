@@ -4,7 +4,6 @@ pref-api-key = API Key:
 pref-endpoint = Endpoint:
 pref-model = Model:
 pref-openai-title = OpenAI Settings
-pref-claude-title = Claude Settings
 pref-ollama-title = Ollama Settings
 pref-generic-title = Generic API Settings
 pref-chat-history =
