@@ -4,7 +4,6 @@ pref-api-key = API 密钥:
 pref-endpoint = 端点地址:
 pref-model = 模型:
 pref-openai-title = OpenAI 设置
-pref-claude-title = Claude 设置
 pref-ollama-title = Ollama 设置
 pref-generic-title = 通用 API 设置
 pref-chat-history =

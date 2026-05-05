@@ -1,7 +1,6 @@
 import { OpenAIProvider } from "./providers/openai";
 import { OllamaProvider } from "./providers/ollama";
 import { GenericProvider } from "./providers/generic";
-import { ClaudeProvider } from "./providers/claude";
 import type { LLMProvider, ChatMessage, LLMConfig } from "../types";
 
 export class LLMService {
@@ -9,7 +8,6 @@ export class LLMService {
 
   constructor() {
     this.registerProvider(new OpenAIProvider());
-    this.registerProvider(new ClaudeProvider());
     this.registerProvider(new OllamaProvider());
     this.registerProvider(new GenericProvider());
   }
