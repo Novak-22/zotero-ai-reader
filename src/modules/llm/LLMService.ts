@@ -1,13 +1,15 @@
 import { OpenAIProvider } from "./providers/openai";
 import { OllamaProvider } from "./providers/ollama";
 import { GenericProvider } from "./providers/generic";
-import type { LLMProvider, ChatMessage, LLMConfig } from "../../types";
+import { ClaudeProvider } from "./providers/claude";
+import type { LLMProvider, ChatMessage, LLMConfig } from "../types";
 
 export class LLMService {
   private providers: Map<string, LLMProvider> = new Map();
 
   constructor() {
     this.registerProvider(new OpenAIProvider());
+    this.registerProvider(new ClaudeProvider());
     this.registerProvider(new OllamaProvider());
     this.registerProvider(new GenericProvider());
   }

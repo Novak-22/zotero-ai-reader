@@ -3,11 +3,8 @@ import type { ChatMessage } from "../types";
 export class ChatStorage {
   private db: any;
 
-  constructor() {
-    this.initDatabase();
-  }
-
-  private initDatabase(): void {
+  private ensureDatabase(): void {
+    if (this.db) return;
     try {
       this.db = new Zotero.DBConnection("ai-reader-chat");
       this.db.query(`
@@ -39,6 +36,7 @@ export class ChatStorage {
     role: "user" | "assistant" | "system",
     content: string
   ): Promise<void> {
+    this.ensureDatabase();
     if (!this.db) return;
 
     try {
@@ -78,6 +76,7 @@ export class ChatStorage {
   }
 
   async getMessages(itemKey: string): Promise<ChatMessage[]> {
+    this.ensureDatabase();
     if (!this.db) return [];
 
     try {
@@ -105,6 +104,7 @@ export class ChatStorage {
   }
 
   async clearMessages(itemKey: string): Promise<void> {
+    this.ensureDatabase();
     if (!this.db) return;
 
     try {

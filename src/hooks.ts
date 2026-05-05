@@ -3,6 +3,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { llmService } from "./modules/llm/LLMService";
 import { pdfService } from "./modules/pdf/PDFService";
 import { chatService } from "./modules/chat/ChatService";
+import { getPref } from "./utils/prefs";
 import type { LLMConfig } from "./modules/types";
 
 async function onStartup() {
@@ -40,11 +41,11 @@ function registerReaderSections(): void {
     pluginID: addon.data.config.addonID,
     header: {
       l10nArgs: `{"label": "AI 目录"}`,
-    },
+    } as any,
     sidenav: {
       l10nArgs: `{"label": "AI 目录", "icon": "chrome://zotero/skin/16/universal/book.svg"}`,
       icon: "chrome://zotero/skin/16/universal/book.svg",
-    },
+    } as any,
     bodyXHTML:
       '<html:div id="ai-toc-container" class="ai-panel-container"/>',
     onInit: ({ body, item }) => {
@@ -54,15 +55,18 @@ function registerReaderSections(): void {
         renderTOCPanel(body as HTMLElement, item);
       }
     },
-    onItemChange: ({ item, setEnabled, tabType }) => {
+    onItemChange: ({ body, item, setEnabled, tabType }) => {
       ztoolkit.log("AI TOC onItemChange", tabType, item?.id);
       setEnabled(tabType === "reader");
-      if (item) {
-        addon.data.reader!.currentItem = item;
-        const container = document.getElementById("ai-toc-container") as HTMLElement;
-        if (container) renderTOCPanel(container, item);
-      }
+      if (tabType !== "reader" || !item) return true;
+      addon.data.reader!.currentItem = item;
+      renderTOCPanel(body as HTMLElement, item);
       return true;
+    },
+    onRender: ({ body, item, tabType }) => {
+      if (tabType !== "reader" || !item) return;
+      addon.data.reader!.currentItem = item;
+      renderTOCPanel(body as HTMLElement, item);
     },
   });
 
@@ -72,43 +76,46 @@ function registerReaderSections(): void {
     pluginID: addon.data.config.addonID,
     header: {
       l10nArgs: `{"label": "AI 对话"}`,
-    },
+    } as any,
     sidenav: {
       l10nArgs: `{"label": "AI 对话", "icon": "chrome://zotero/skin/16/universal/chat.svg"}`,
       icon: "chrome://zotero/skin/16/universal/chat.svg",
-    },
+    } as any,
     bodyXHTML:
       '<html:div id="ai-chat-container" class="ai-panel-container"/>',
     onInit: async ({ body, item }) => {
       ztoolkit.log("AI Chat section init", item?.id);
       if (item) {
-        const itemKey = `item_${item.id}`;
+        const itemKey = buildItemKey(item);
         await chatService.initSession(itemKey);
         renderChatUI(body as HTMLElement);
       }
     },
-    onItemChange: async ({ item, setEnabled, tabType }) => {
+    onItemChange: async ({ body, item, setEnabled, tabType }) => {
       ztoolkit.log("AI Chat onItemChange", tabType, item?.id);
       setEnabled(tabType === "reader");
-      if (item) {
-        const itemKey = `item_${item.id}`;
-        await chatService.initSession(itemKey);
-        const container = document.getElementById("ai-chat-container") as HTMLElement;
-        if (container) renderChatUI(container);
-      }
+      if (tabType !== "reader" || !item) return true;
+      const itemKey = buildItemKey(item);
+      await chatService.initSession(itemKey);
+      renderChatUI(body as HTMLElement);
       return true;
+    },
+    onRender: async ({ body, item, tabType }) => {
+      if (tabType !== "reader" || !item) return;
+      const itemKey = buildItemKey(item);
+      await chatService.initSession(itemKey);
+      renderChatUI(body as HTMLElement);
     },
     sectionButtons: [
       {
         type: "clear",
         icon: "chrome://zotero/skin/16/universal/empty-trash.svg",
         l10nArgs: `{"label": "清空"}`,
-        onClick: async () => {
+        onClick: async ({ body }: { body: HTMLElement }) => {
           await chatService.clearContext();
-          const container = document.getElementById("ai-chat-container") as HTMLElement;
-          if (container) renderChatUI(container);
+          renderChatUI(body as HTMLElement);
         },
-      },
+      } as any,
     ],
   });
 }
@@ -126,7 +133,7 @@ function renderTOCPanel(container: HTMLElement, item: Zotero.Item): void {
     </div>
   `;
 
-  const refreshBtn = document.getElementById("toc-refresh-btn");
+  const refreshBtn = container.querySelector("#toc-refresh-btn");
   refreshBtn?.addEventListener("click", async () => {
     await generateTOC(container, item);
   });
@@ -235,8 +242,8 @@ function renderChatUI(container: HTMLElement): void {
     </div>
   `;
 
-  const sendBtn = document.getElementById("chat-send-btn");
-  const input = document.getElementById("chat-input") as HTMLTextAreaElement;
+  const sendBtn = container.querySelector("#chat-send-btn") as HTMLButtonElement | null;
+  const input = container.querySelector("#chat-input") as HTMLTextAreaElement | null;
 
   sendBtn?.addEventListener("click", async () => {
     const text = input?.value?.trim();
@@ -251,10 +258,9 @@ function renderChatUI(container: HTMLElement): void {
     const config = getLLMConfig();
     try {
       sendBtn.setAttribute("disabled", "true");
-      input.value = "";
+      if (input) input.value = "";
       await chatService.sendMessage(text, selectedText, getDefaultProvider(), config);
-      const container = document.getElementById("ai-chat-container") as HTMLElement;
-      if (container) renderChatUI(container);
+      renderChatUI(container);
     } catch (error) {
       ztoolkit.log("Chat error:", error);
       alert(`Error: ${error}`);
@@ -277,20 +283,25 @@ function getSelectedPDFText(): string {
   return "";
 }
 
+function buildItemKey(item: Zotero.Item): string {
+  const libraryID = item.libraryID ?? 0;
+  return `${libraryID}:${item.key}`;
+}
+
 function getLLMConfig(): LLMConfig {
   const provider = getDefaultProvider();
   return {
-    provider: provider as LLMConfig["provider"],
-    apiKey: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.${provider}`) as string,
-    endpoint: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.${provider}`) as string,
-    model: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.${provider}`) as string,
+    provider,
+    apiKey: getPref(`apiKey.${provider}`),
+    endpoint: getPref(`endpoint.${provider}`),
+    model: getPref(`model.${provider}`),
     temperature: 0.7,
     maxTokens: 2048,
   };
 }
 
-function getDefaultProvider(): string {
-  return (Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string) || "openai";
+function getDefaultProvider(): LLMConfig["provider"] {
+  return getPref("defaultProvider") as LLMConfig["provider"];
 }
 
 function escapeHtml(text: string): string {

@@ -1,5 +1,6 @@
 import { chatStorage } from "./ChatStorage";
 import { llmService } from "../llm/LLMService";
+import { getPref } from "../../utils/prefs";
 import type { ChatMessage, LLMConfig } from "../types";
 
 export class ChatService {
@@ -8,6 +9,10 @@ export class ChatService {
 
   async initSession(itemKey: string): Promise<void> {
     this.itemKey = itemKey;
+    if (!getPref("chatHistoryEnabled")) {
+      this.context = [];
+      return;
+    }
     this.context = await chatStorage.getMessages(itemKey);
   }
 
@@ -25,7 +30,10 @@ export class ChatService {
     };
 
     this.context.push(userMessage);
-    await chatStorage.saveMessage(this.itemKey, "user", userMessage.content);
+    const historyEnabled = getPref("chatHistoryEnabled");
+    if (historyEnabled) {
+      await chatStorage.saveMessage(this.itemKey, "user", userMessage.content);
+    }
 
     // Generate response
     const systemPrompt = `You are a research assistant helping analyze academic papers. You have access to the selected text from the PDF. Answer questions about the text accurately. If the selected text doesn't contain relevant information, say so.`;
@@ -44,7 +52,9 @@ export class ChatService {
       };
 
       this.context.push(assistantMessage);
-      await chatStorage.saveMessage(this.itemKey, "assistant", response);
+      if (historyEnabled) {
+        await chatStorage.saveMessage(this.itemKey, "assistant", response);
+      }
 
       return response;
     } catch (error) {
@@ -59,7 +69,9 @@ export class ChatService {
 
   async clearContext(): Promise<void> {
     this.context = [];
-    await chatStorage.clearMessages(this.itemKey);
+    if (getPref("chatHistoryEnabled")) {
+      await chatStorage.clearMessages(this.itemKey);
+    }
   }
 }
 

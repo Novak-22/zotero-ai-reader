@@ -33,3 +33,15 @@ export interface ChatSession {
   createdAt: number;
   updatedAt: number;
 }
+
+export interface LLMProvider {
+  name: string;
+  chat(messages: ChatMessage[], config: LLMConfig): Promise<string>;
+  getCapabilities(): ProviderCapabilities;
+}
+
+export interface ProviderCapabilities {
+  streaming: boolean;
+  functionCalls: boolean;
+  vision: boolean;
+}
