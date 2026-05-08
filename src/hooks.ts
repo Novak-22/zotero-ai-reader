@@ -462,8 +462,10 @@ async function navigateToPDFPage(page: number): Promise<void> {
     }
 
     // Navigate using the PDFView's navigate method (returns a promise)
-    if (typeof primaryView.navigate === "function") {
-      await primaryView.navigate({ pageIndex: validPage - 1 });
+    // primaryView is PDFView which has navigate, but TS doesn't know this
+    const navigateFn = (primaryView as any).navigate;
+    if (typeof navigateFn === "function") {
+      await navigateFn.call(primaryView, { pageIndex: validPage - 1 });
       ztoolkit.log(`Navigated to page ${validPage}`);
       return;
     }
