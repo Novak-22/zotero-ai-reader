@@ -21,17 +21,51 @@
   - [x] 验证: Zotero.AddonAIReader.data.initialized === true
   - [x] 验证: AI TOC 和 AI Chat 两个 section 在 item pane 中可见
 
-## Current State (2026-05-04)
+## Phase 3: AI TOC 功能优化 (2026-05-08)
 
-插件已成功加载并在 Zotero item pane 中显示两个 section：
-- **AI TOC**: 显示 "AI 目录 ↺ 点击按钮生成目录"（按钮存在但功能未接通）
-- **AI Chat**: 显示 "Select text in PDF and ask questions Send"（UI 存在但功能未接通）
+### 已完成
+- [x] **PDF页面导航修复**
+  - 发现 Zotero.Reader._readers[0]._internalReader._primaryView 包含 PDFView
+  - PDFView.navigate({ pageIndex }) 方法可用于页面跳转
+  - 更新 navigateToPDFPage() 使用正确的方法
+
+- [x] **TOC UI 美化**
+  - 添加 .ai-toc-title 样式：文字溢出省略号
+  - 添加 .ai-toc-page 样式：页面标签显示为圆角标签
+  - 添加 .ai-toc-loading 样式：加载动画
+  - 优化图标大小和层级间距
+
+### 技术细节
+- **页面导航发现过程**：
+  1. Zotero.Reader.getByTabID(tabID) 获取 ReaderTab 实例
+  2. ReaderTab._internalReader 包含实际阅读器
+  3. _internalReader._primaryView 是 pdf_view_PDFView 类型
+  4. PDFView.navigate({ pageIndex }) 可导航到指定页面（0-indexed）
+
+### Git 提交
+- `0acef7c` fix: Use Zotero.Reader._readers[0]._internalReader._primaryView.navigate for page navigation
+- `02b5c70` enhance: Add TOC item styling - icons, ellipsis, page badges, and loading spinner
+
+## 当前状态
+
+AI TOC 功能：
+- ✅ 插件成功加载并显示 AI TOC 和 AI Chat 两个面板
+- ✅ 点击刷新按钮可生成目录（调用 LLM）
+- ✅ 目录以层级形式显示（level-1/2/3）
+- ✅ 点击目录项可导航到 PDF 对应页面
+- ✅ UI 美化：加载动画、标题省略、页码标签
+
+## 待验证
+- [ ] TOC 点击导航是否正确工作（需在 Zotero 中测试）
+- [ ] 多段落 PDF 的 paragraphIndex 映射是否正确
+- [ ] AI Chat 功能接入
 
 ## Next Steps
 
-1. **AI TOC 功能接通**
-   - 点击生成按钮 → 调用 PDFService 提取文本 → 调用 LLMService 生成目录
-   - 目录条目点击跳转到 PDF 对应页面
+1. **AI TOC 验证测试**
+   - 在 Zotero 中打开 PDF，点击 TOC 刷新按钮
+   - 验证目录生成成功
+   - 点击目录项，验证 PDF 跳转
 
 2. **AI Chat 功能接通**
    - 配置 LLM API Key（设置界面）
@@ -43,10 +77,6 @@
    - API Key 输入
    - Model 名称配置
 
-4. **稳定性**
-   - 错误处理和用户提示
-   - 多 item 切换时的状态管理
-
 ---
 
-Last Updated: 2026-05-04
+Last Updated: 2026-05-08
