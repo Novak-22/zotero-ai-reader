@@ -55,6 +55,34 @@ AI TOC 功能：
 - ✅ 点击目录项可导航到 PDF 对应页面
 - ✅ UI 美化：加载动画、标题省略、页码标签
 
+## 导航实现说明 (2026-05-08)
+
+### 发现过程
+1. Zotero.Reader._readers 包含所有打开的阅读器
+2. ReaderTab._internalReader 包含实际阅读器实现
+3. _internalReader._primaryView 是 pdf_view_PDFView 类型
+4. PDFView.navigate({ pageIndex }) 方法接受 0-indexed 页码
+
+### 实现代码
+```typescript
+async function navigateToPDFPage(page: number): Promise<void> {
+  const readers = Zotero.Reader._readers;
+  if (!readers || readers.length === 0) return;
+
+  const primaryView = readers[0]._internalReader?._primaryView;
+  if (!primaryView) return;
+
+  if (typeof primaryView.navigate === "function") {
+    await primaryView.navigate({ pageIndex: page - 1 });
+  }
+}
+```
+
+### 注意事项
+- navigate() 返回 Promise，需要 await
+- 页码参数是 0-indexed（所以 page 1 传入 pageIndex: 0）
+- MCP 执行上下文可能无法准确读取导航后的 pageIndex（状态同步问题）
+
 ## 待验证
 - [ ] TOC 点击导航是否正确工作（需在 Zotero 中测试）
 - [ ] 多段落 PDF 的 paragraphIndex 映射是否正确
