@@ -436,41 +436,29 @@ function navigateToPDFPage(page: number): void {
   if (!Number.isFinite(page) || page < 1) return;
 
   try {
-    const mainWindow = (Zotero as any).getMainWindow?.();
-    const integration = mainWindow?.Zotero_Reader_Integration;
-    const reader = integration?.getReader?.();
-
-    if (!reader) {
+    // Get reader from Zotero.Reader._readers
+    const readers = Zotero.Reader._readers;
+    if (!readers || readers.length === 0) {
+      ztoolkit.log("No readers found");
       return;
     }
 
-    if (typeof reader.navigate === "function") {
-      reader.navigate({ pageIndex: page - 1 });
+    const reader = readers[0];
+    const primaryView = reader._internalReader?._primaryView;
+
+    if (!primaryView) {
+      ztoolkit.log("No primaryView found");
       return;
     }
 
-    if (typeof reader.gotoPage === "function") {
-      reader.gotoPage(page);
+    // Navigate using the PDFView's navigate method
+    if (typeof primaryView.navigate === "function") {
+      primaryView.navigate({ pageIndex: page - 1 });
+      ztoolkit.log(`Navigated to page ${page} via primaryView.navigate`);
       return;
     }
 
-    if (typeof reader.scrollToPage === "function") {
-      reader.scrollToPage(page - 1);
-      return;
-    }
-
-    if (typeof reader.setPage === "function") {
-      reader.setPage(page - 1);
-      return;
-    }
-
-    const internalReader = reader._internalReader || reader._reader;
-    if (internalReader?.setPageNumber) {
-      internalReader.setPageNumber(page);
-      return;
-    }
-
-    scrollToParagraph(page - 1);
+    ztoolkit.log("primaryView.navigate not available");
   } catch (error) {
     ztoolkit.log("Failed to navigate PDF page:", error);
   }
