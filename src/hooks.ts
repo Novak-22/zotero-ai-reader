@@ -183,7 +183,7 @@ function renderTOCPanel(container: HTMLElement, item: Zotero.Item): void {
 async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<void> {
   ztoolkit.log("generateTOC called, container:", container?.id, container?.childNodes.length);
   const listEl = container.querySelector("#toc-list");
-  if (listEl) listEl.innerHTML = '<div class="ai-toc-empty">生成中...</div>';
+  if (listEl) listEl.innerHTML = '<div class="ai-toc-loading">生成中...</div>';
 
   const progressWindow = new ztoolkit.ProgressWindow("AI Reader", {
     closeOnClick: true,

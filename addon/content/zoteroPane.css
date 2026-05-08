@@ -75,6 +75,60 @@
 
 .ai-toc-icon {
   margin-right: 6px;
+  font-size: 14px;
+}
+
+.ai-toc-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ai-toc-page {
+  font-size: 10px;
+  color: #888;
+  margin-left: 8px;
+  background: rgba(0,0,0,0.06);
+  padding: 2px 6px;
+  border-radius: 10px;
+}
+
+.ai-toc-item.level-1 .ai-toc-title {
+  font-size: 14px;
+}
+
+.ai-toc-item.level-2 .ai-toc-title {
+  font-size: 13px;
+}
+
+.ai-toc-item.level-3 .ai-toc-title {
+  font-size: 12px;
+  color: #555;
+}
+
+.ai-toc-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #666;
+}
+
+.ai-toc-loading::before {
+  content: "";
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #ddd;
+  border-top-color: #666;
+  border-radius: 50%;
+  margin-right: 8px;
+  animation: ai-toc-spin 0.8s linear infinite;
+}
+
+@keyframes ai-toc-spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Chat Panel */
