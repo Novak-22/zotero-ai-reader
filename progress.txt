@@ -75,10 +75,19 @@ async function navigateToPDFPage(page: number): Promise<void> {
   const primaryView = reader._internalReader?._primaryView;
   if (!primaryView) return;
 
-  // Cap page number to total pages
   const totalPages = reader._internalReader._state.pageLabels?.length || 1;
   const validPage = Math.min(page, totalPages);
 
+  // Use pdfViewer._setCurrentPageNumber directly - this is the reliable method
+  const iframeWindow = (primaryView as any)._iframeWindow;
+  const pdfViewer = iframeWindow?.PDFViewerApplication?.pdfViewer;
+
+  if (pdfViewer && typeof pdfViewer._setCurrentPageNumber === "function") {
+    pdfViewer._setCurrentPageNumber(validPage, true);
+    return;
+  }
+
+  // Fallback to navigate method
   const navigateFn = (primaryView as any).navigate;
   if (typeof navigateFn === "function") {
     await navigateFn.call(primaryView, { pageIndex: validPage - 1 });
@@ -86,14 +95,14 @@ async function navigateToPDFPage(page: number): Promise<void> {
 }
 ```
 
-### 注意事项
-- navigate() 返回 Promise，需要 await
-- 页码参数是 0-indexed（所以 page 1 传入 pageIndex: 0）
-- 使用 `(primaryView as any).navigate` 避免 TypeScript 类型检查问题
-- 添加页码上限检查防止传入超大值导致问题
+### 关键技术发现
+- `primaryView._iframeWindow.PDFViewerApplication.pdfViewer` 包含 PDF 查看器
+- `pdfViewer._setCurrentPageNumber(pageNum, true)` 直接设置当前页码（1-indexed）
+- `pdfViewer.currentPageNumber` 返回当前页码（1-indexed）
+- `primaryView.navigate()` 方法存在异步问题，不可靠
 
 ## 待验证
-- [ ] TOC 点击导航是否正确工作（需在 Zotero 中测试）
+- [x] TOC 点击导航是否正确工作 - 已验证 pdfViewer._setCurrentPageNumber 方法有效
 - [ ] 多段落 PDF 的 paragraphIndex 映射是否正确
 - [ ] AI Chat 功能接入
 
