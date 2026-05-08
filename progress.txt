@@ -66,14 +66,22 @@ AI TOC 功能：
 ### 实现代码
 ```typescript
 async function navigateToPDFPage(page: number): Promise<void> {
+  if (!Number.isFinite(page) || page < 1) return;
+
   const readers = Zotero.Reader._readers;
   if (!readers || readers.length === 0) return;
 
-  const primaryView = readers[0]._internalReader?._primaryView;
+  const reader = readers[0];
+  const primaryView = reader._internalReader?._primaryView;
   if (!primaryView) return;
 
-  if (typeof primaryView.navigate === "function") {
-    await primaryView.navigate({ pageIndex: page - 1 });
+  // Cap page number to total pages
+  const totalPages = reader._internalReader._state.pageLabels?.length || 1;
+  const validPage = Math.min(page, totalPages);
+
+  const navigateFn = (primaryView as any).navigate;
+  if (typeof navigateFn === "function") {
+    await navigateFn.call(primaryView, { pageIndex: validPage - 1 });
   }
 }
 ```
@@ -81,7 +89,8 @@ async function navigateToPDFPage(page: number): Promise<void> {
 ### 注意事项
 - navigate() 返回 Promise，需要 await
 - 页码参数是 0-indexed（所以 page 1 传入 pageIndex: 0）
-- MCP 执行上下文可能无法准确读取导航后的 pageIndex（状态同步问题）
+- 使用 `(primaryView as any).navigate` 避免 TypeScript 类型检查问题
+- 添加页码上限检查防止传入超大值导致问题
 
 ## 待验证
 - [ ] TOC 点击导航是否正确工作（需在 Zotero 中测试）
