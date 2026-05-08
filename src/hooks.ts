@@ -284,11 +284,11 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
           .join("");
 
         listEl.querySelectorAll(".ai-toc-item").forEach((el: Element) => {
-          el.addEventListener("click", () => {
+          el.addEventListener("click", async () => {
             const idx = el.getAttribute("data-paragraph-index");
             const page = el.getAttribute("data-page");
             if (page && Number.isFinite(Number(page))) {
-              navigateToPDFPage(Number(page));
+              await navigateToPDFPage(Number(page));
               return;
             }
             if (idx) scrollToParagraph(parseInt(idx));
@@ -432,7 +432,7 @@ function escapeHtml(text: string): string {
     .replace(/'/g, "&#039;");
 }
 
-function navigateToPDFPage(page: number): void {
+async function navigateToPDFPage(page: number): Promise<void> {
   if (!Number.isFinite(page) || page < 1) return;
 
   try {
@@ -451,10 +451,10 @@ function navigateToPDFPage(page: number): void {
       return;
     }
 
-    // Navigate using the PDFView's navigate method
+    // Navigate using the PDFView's navigate method (returns a promise)
     if (typeof primaryView.navigate === "function") {
-      primaryView.navigate({ pageIndex: page - 1 });
-      ztoolkit.log(`Navigated to page ${page} via primaryView.navigate`);
+      await primaryView.navigate({ pageIndex: page - 1 });
+      ztoolkit.log(`Navigated to page ${page}`);
       return;
     }
 
