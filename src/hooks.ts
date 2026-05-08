@@ -461,8 +461,18 @@ async function navigateToPDFPage(page: number): Promise<void> {
       ztoolkit.log(`Page ${page} exceeds total pages ${totalPages}, capping to ${validPage}`);
     }
 
-    // Navigate using the PDFView's navigate method (returns a promise)
-    // primaryView is PDFView which has navigate, but TS doesn't know this
+    // Use _iframeWindow.PDFViewerApplication.pdfViewer._setCurrentPageNumber directly
+    // This is more reliable than the navigate() method which has async issues
+    const iframeWindow = (primaryView as any)._iframeWindow;
+    const pdfViewer = iframeWindow?.PDFViewerApplication?.pdfViewer;
+
+    if (pdfViewer && typeof pdfViewer._setCurrentPageNumber === "function") {
+      pdfViewer._setCurrentPageNumber(validPage, true);
+      ztoolkit.log(`Navigated to page ${validPage}`);
+      return;
+    }
+
+    // Fallback to navigate method if pdfViewer approach doesn't work
     const navigateFn = (primaryView as any).navigate;
     if (typeof navigateFn === "function") {
       await navigateFn.call(primaryView, { pageIndex: validPage - 1 });
@@ -470,7 +480,7 @@ async function navigateToPDFPage(page: number): Promise<void> {
       return;
     }
 
-    ztoolkit.log("primaryView.navigate not available");
+    ztoolkit.log("No navigation method available");
   } catch (error) {
     ztoolkit.log("Failed to navigate PDF page:", error);
   }
