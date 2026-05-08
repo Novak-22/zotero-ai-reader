@@ -433,7 +433,10 @@ function escapeHtml(text: string): string {
 }
 
 async function navigateToPDFPage(page: number): Promise<void> {
-  if (!Number.isFinite(page) || page < 1) return;
+  if (!Number.isFinite(page) || page < 1) {
+    ztoolkit.log("Invalid page number:", page);
+    return;
+  }
 
   try {
     // Get reader from Zotero.Reader._readers
@@ -451,10 +454,17 @@ async function navigateToPDFPage(page: number): Promise<void> {
       return;
     }
 
+    // Get total pages and validate page number
+    const totalPages = reader._internalReader._state.pageLabels?.length || 1;
+    const validPage = Math.min(page, totalPages);
+    if (validPage !== page) {
+      ztoolkit.log(`Page ${page} exceeds total pages ${totalPages}, capping to ${validPage}`);
+    }
+
     // Navigate using the PDFView's navigate method (returns a promise)
     if (typeof primaryView.navigate === "function") {
-      await primaryView.navigate({ pageIndex: page - 1 });
-      ztoolkit.log(`Navigated to page ${page}`);
+      await primaryView.navigate({ pageIndex: validPage - 1 });
+      ztoolkit.log(`Navigated to page ${validPage}`);
       return;
     }
 
