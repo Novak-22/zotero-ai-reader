@@ -4,6 +4,7 @@ import { createZToolkit } from "./utils/ztoolkit";
 import { llmService } from "./modules/llm/LLMService";
 import { pdfService } from "./modules/pdf/PDFService";
 import { chatService } from "./modules/chat/ChatService";
+import { getPref } from "./utils/prefs";
 import type { LLMConfig } from "./modules/types";
 
 // Module-level cache for config values (since Zotero.Prefs doesn't work in sandbox)
@@ -27,10 +28,10 @@ async function onStartup() {
   // Cache config values at startup (before sandboxed contexts run)
   cachedConfig = {
     prefsPrefix: addon.data.config.prefsPrefix,
-    defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
-    apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
-    endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
-    model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
+    defaultProvider: (getPref("defaultProvider") as string) || "openai",
+    apiKey_generic: (getPref("apiKey.generic") as string) || "",
+    endpoint_generic: (getPref("endpoint.generic") as string) || "",
+    model_generic: (getPref("model.generic") as string) || "",
   };
   ztoolkit.log("Cached config:", JSON.stringify(cachedConfig));
 
@@ -83,8 +84,6 @@ function registerReaderSections(): void {
       setEnabled(tabType === "reader");
       if (item) {
         addon.data.reader!.currentItem = item;
-        const container = document.getElementById("ai-toc-container") as HTMLElement;
-        if (container) renderTOCPanel(container, item);
       }
       return true;
     },
@@ -96,19 +95,15 @@ function registerReaderSections(): void {
         onClick: async ({ item, body }) => {
           ztoolkit.log("TOC BUTTON CLICKED at last!");
           if (item && body) {
-            // Update cache from current Zotero.Prefs before calling generateTOC
-            try {
-              cachedConfig = {
-                prefsPrefix: addon.data.config.prefsPrefix,
-                defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
-                apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
-                endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
-                model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
-              };
-              ztoolkit.log("Updated cache from prefs:", JSON.stringify(cachedConfig));
-            } catch (e) {
-              ztoolkit.log("Failed to update cache:", e);
-            }
+            // Update cache from prefs using getPref (Services.prefs)
+            cachedConfig = {
+              prefsPrefix: addon.data.config.prefsPrefix,
+              defaultProvider: (getPref("defaultProvider") as string) || "openai",
+              apiKey_generic: (getPref("apiKey.generic") as string) || "",
+              endpoint_generic: (getPref("endpoint.generic") as string) || "",
+              model_generic: (getPref("model.generic") as string) || "",
+            };
+            ztoolkit.log("Updated cache from prefs:", JSON.stringify(cachedConfig));
             await generateTOC(body as HTMLElement, item);
           } else {
             ztoolkit.log("item or body missing!", { item, body });
@@ -149,8 +144,6 @@ function registerReaderSections(): void {
       if (item) {
         const itemKey = `item_${item.id}`;
         await chatService.initSession(itemKey);
-        const container = document.getElementById("ai-chat-container") as HTMLElement;
-        if (container) renderChatUI(container);
       }
       return true;
     },
@@ -159,10 +152,9 @@ function registerReaderSections(): void {
         type: "clear",
         icon: "chrome://zotero/skin/16/universal/empty-trash.svg",
         l10nID: getLocaleID("ai-reader-clear-button"),
-        onClick: async () => {
+        onClick: async ({ body }) => {
           await chatService.clearContext();
-          const container = document.getElementById("ai-chat-container") as HTMLElement;
-          if (container) renderChatUI(container);
+          if (body) renderChatUI(body as HTMLElement);
         },
       },
     ],
@@ -204,13 +196,13 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
       progress: 5,
     });
 
-    // Update cache from prefs
+    // Update cache from prefs using getPref (Services.prefs)
     cachedConfig = {
       prefsPrefix: addon.data.config.prefsPrefix,
-      defaultProvider: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.defaultProvider`) as string || "openai",
-      apiKey_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.apiKey.generic`) as string || "",
-      endpoint_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.endpoint.generic`) as string || "",
-      model_generic: Zotero.Prefs.get(`${addon.data.config.prefsPrefix}.model.generic`) as string || "",
+      defaultProvider: (getPref("defaultProvider") as string) || "openai",
+      apiKey_generic: (getPref("apiKey.generic") as string) || "",
+      endpoint_generic: (getPref("endpoint.generic") as string) || "",
+      model_generic: (getPref("model.generic") as string) || "",
     };
     progressWindow.changeLine({ progress: 10, text: `Provider: ${cachedConfig.defaultProvider}, API Key: ${cachedConfig.apiKey_generic ? "已设置" : "未设置"}` });
 
@@ -240,8 +232,6 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
 
     progressWindow.changeLine({ progress: 60, text: "Generating TOC with AI..." });
 
-    const provider = getDefaultProvider();
-    const config = getLLMConfig();
     ztoolkit.log("TOC generateTOC step 1 - provider:", provider, "config.apiKey:", config.apiKey ? "SET" : "EMPTY", "config.endpoint:", config.endpoint);
     const configError = validateLLMConfig(provider, config);
     ztoolkit.log("TOC configError:", configError);
@@ -390,32 +380,16 @@ function getSelectedPDFText(): string {
 
 function getLLMConfig(): LLMConfig {
   const provider = getDefaultProvider();
-  // Try fresh read of prefs
-  try {
-    const apiKey = Zotero.Prefs.get("extensions.zotero.aiReader.apiKey." + provider);
-    const endpoint = Zotero.Prefs.get("extensions.zotero.aiReader.endpoint." + provider);
-    const model = Zotero.Prefs.get("extensions.zotero.aiReader.model." + provider);
-    ztoolkit.log("getLLMConfig fresh read - apiKey:", apiKey ? "SET" : "EMPTY", "endpoint:", endpoint);
-    if (apiKey !== undefined || endpoint !== undefined || model !== undefined) {
-      return {
-        provider: provider as LLMConfig["provider"],
-        apiKey: (apiKey as string) || cachedConfig?.apiKey_generic || "",
-        endpoint: (endpoint as string) || cachedConfig?.endpoint_generic || "",
-        model: (model as string) || cachedConfig?.model_generic || "",
-        temperature: 0.7,
-        maxTokens: 2048,
-      };
-    }
-  } catch (e) {
-    ztoolkit.log("getLLMConfig fresh read failed:", e);
-  }
-  // Fall back to cache
-  ztoolkit.log("getLLMConfig using cache, provider:", provider, "cache:", JSON.stringify(cachedConfig));
+  // Use getPref which uses Services.prefs for reliability
+  const apiKey = (getPref(`apiKey.${provider}`) as string) || cachedConfig?.apiKey_generic || "";
+  const endpoint = (getPref(`endpoint.${provider}`) as string) || cachedConfig?.endpoint_generic || "";
+  const model = (getPref(`model.${provider}`) as string) || cachedConfig?.model_generic || "";
+  ztoolkit.log("getLLMConfig - provider:", provider, "apiKey:", apiKey ? "SET" : "EMPTY", "endpoint:", endpoint);
   return {
     provider: provider as LLMConfig["provider"],
-    apiKey: cachedConfig?.apiKey_generic || "",
-    endpoint: cachedConfig?.endpoint_generic || "",
-    model: cachedConfig?.model_generic || "",
+    apiKey,
+    endpoint,
+    model,
     temperature: 0.7,
     maxTokens: 2048,
   };
@@ -423,15 +397,11 @@ function getLLMConfig(): LLMConfig {
 
 // Check if cached config has stale values by checking if a prefs update happened
 function getDefaultProvider(): string {
-  // Re-read from Zotero.Prefs at call time if possible, otherwise use cache
-  try {
-    const currentPref = Zotero.Prefs.get("extensions.zotero.aiReader.defaultProvider");
-    if (currentPref && typeof currentPref === "string") {
-      ztoolkit.log("getDefaultProvider fresh read:", currentPref);
-      return currentPref;
-    }
-  } catch (e) {
-    ztoolkit.log("getDefaultProvider fresh read failed:", e);
+  // Use getPref which leverages Services.prefs for reliability
+  const provider = getPref("defaultProvider") as string;
+  if (provider) {
+    ztoolkit.log("getDefaultProvider:", provider);
+    return provider;
   }
   return cachedConfig?.defaultProvider || "openai";
 }

@@ -54,26 +54,87 @@ export class LLMService {
       .map((p, i) => `[段落${i + 1}]\n${p}`)
       .join("\n\n");
 
-    const systemPrompt = `You are analyzing an academic paper to generate a table of contents. Based on the paper segments provided, generate a hierarchical table of contents. Return a JSON array of {title, level, paragraphIndex} objects. Level 1 for main sections (like "1. Introduction"), Level 2 for subsections. Only include meaningful sections, skip very short or trivial segments. Output in Chinese.`;
+    // Very explicit system prompt with JSON output instruction
+    const systemPrompt = `You are a JSON API. Your responses must be EXCLUSIVELY valid JSON. No text before or after. Example: [{"title":"1. Introduction","level":1,"paragraphIndex":0}]`;
+    const userPrompt = `You are an API that returns JSON. Output ONLY this exact JSON format, nothing else: [{"title":"Section Name","level":1,"paragraphIndex":N}]
+
+Analyze these paper sections and output JSON:
+${textForAnalysis}`;
     const messages: ChatMessage[] = [
       { role: "system", content: systemPrompt, timestamp: Date.now() },
-      { role: "user", content: textForAnalysis, timestamp: Date.now() },
+      { role: "user", content: userPrompt, timestamp: Date.now() },
     ];
 
     const response = await this.chat(providerName, messages, config);
+    ztoolkit.log("TOC raw response:", response);
 
     try {
-      // Try to extract JSON from response
-      const jsonMatch = response.match(/\[.*\]/s);
-      if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+      // Extract JSON array from response - need to handle thinking text before JSON
+      const jsonArray = extractJSONArray(response);
+      if (jsonArray) {
+        ztoolkit.log("TOC parsed:", jsonArray);
+        return jsonArray;
       }
-      return JSON.parse(response);
-    } catch {
-      ztoolkit.log("Failed to parse TOC response:", response);
+      // Try parsing the whole response as JSON
+      const parsed = JSON.parse(response);
+      ztoolkit.log("TOC parsed directly:", parsed);
+      return parsed;
+    } catch (e) {
+      ztoolkit.log("Failed to parse TOC response:", response, e);
       return [];
     }
   }
+}
+
+/**
+ * Extract the first valid JSON array from a string that may contain
+ * thinking/reasoning text before or after the JSON.
+ * Looks for the pattern "[{" and validates the parsed content.
+ */
+function extractJSONArray(text: string): { title: string; level: number; paragraphIndex: number }[] | null {
+  // Look for "[{" pattern which marks the start of our JSON array
+  let searchStart = 0;
+  while (searchStart < text.length) {
+    const startIdx = text.indexOf("[{", searchStart);
+    if (startIdx === -1) return null;
+
+    const jsonStart = startIdx;
+
+    // Find the matching closing ']' using a simple stack approach
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = jsonStart; i < text.length; i++) {
+      const char = text[i];
+      if (char === '[') {
+        depth++;
+      } else if (char === ']') {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+
+    if (endIdx === -1) return null;
+
+    const jsonStr = text.substring(jsonStart, endIdx + 1);
+    try {
+      const parsed = JSON.parse(jsonStr);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        // Validate this looks like our TOC format (has title and level fields)
+        if (typeof parsed[0] === 'object' && 'title' in parsed[0] && 'level' in parsed[0]) {
+          return parsed;
+        }
+      }
+    } catch {
+      // Not valid JSON, continue searching
+    }
+
+    // Move past this occurrence and continue searching
+    searchStart = startIdx + 1;
+  }
+  return null;
 }
 
 export const llmService = new LLMService();

@@ -13,7 +13,13 @@ export class GenericProvider extends BaseLLMProvider {
       throw new Error("API key not configured");
     }
 
-    const response = await fetch(config.endpoint, {
+    // Resolve endpoint - use as-is if it has a path, otherwise append standard OpenAI path
+    let endpoint = config.endpoint.trim();
+    if (!endpoint.includes("/v1") && !endpoint.includes("/chat")) {
+      endpoint = endpoint.replace(/\/$/, "") + "/v1/chat/completions";
+    }
+
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
