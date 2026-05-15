@@ -41,6 +41,7 @@ async function onStartup() {
     src: rootURI + "content/preferences.xhtml",
     label: getString("pref-title"),
     image: `chrome://${addon.data.config.addonRef}/content/icons/favicon.png`,
+    scripts: [rootURI + "content/preferences.js"],
   });
 
   // Register reader pane sections

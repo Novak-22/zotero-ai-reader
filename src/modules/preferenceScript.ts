@@ -84,7 +84,38 @@ function bindPrefEvents(win: Window): void {
 }
 
 export async function registerPrefsScripts(win: Window) {
-  updateProviderGroups(win);
-  bindPrefEvents(win);
-  validateCurrentProviderConfig(win);
+  // The win passed here may be a Cu.Sandbox with sandboxPrototype=prefWindow.
+  // We need the actual preferences window to hook Zotero_Preferences._showPane.
+  // Use Services.wm to get the real preferences window.
+  let prefWin: any = win;
+  try {
+    const realWin = (Services as any).wm.getMostRecentWindow("zotero:pref");
+    if (realWin) prefWin = realWin;
+  } catch {
+    // fallback to win
+  }
+
+  const zp = (prefWin as any).Zotero_Preferences;
+  if (zp && typeof zp._showPane === "function" && !zp._aiReaderHooked) {
+    zp._aiReaderHooked = true;
+    const origShowPane = zp._showPane.bind(zp);
+    zp._showPane = function(paneID: string) {
+      const result = origShowPane(paneID);
+      if (paneID && paneID.indexOf("ai-reader") !== -1) {
+        setTimeout(() => {
+          updateProviderGroups(prefWin);
+          bindPrefEvents(prefWin);
+          validateCurrentProviderConfig(prefWin);
+        }, 100);
+      }
+      return result;
+    };
+  } else {
+    // Fallback: try directly if pane elements are already in DOM
+    setTimeout(() => {
+      updateProviderGroups(prefWin);
+      bindPrefEvents(prefWin);
+      validateCurrentProviderConfig(prefWin);
+    }, 300);
+  }
 }
