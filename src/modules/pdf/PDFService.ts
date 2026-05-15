@@ -37,9 +37,15 @@ export class PDFService {
       const trimmed = line.trim();
 
       // Detect page break markers (common in extracted PDFs)
+      // Only accept standalone numbers that look like real page numbers (1–9999)
+      // and are >= current page (monotonically increasing) to avoid matching
+      // arbitrary numbers like figure labels or citation counts.
       const pageMatch = trimmed.match(/^(?:Page:\s*)?(\d+)$/);
       if (pageMatch) {
-        pageNumber = parseInt(pageMatch[1], 10);
+        const candidate = parseInt(pageMatch[1], 10);
+        if (candidate >= 1 && candidate <= 9999 && candidate >= pageNumber) {
+          pageNumber = candidate;
+        }
         continue;
       }
 

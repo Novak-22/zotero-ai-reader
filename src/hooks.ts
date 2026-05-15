@@ -161,29 +161,20 @@ function registerReaderSections(): void {
   });
 }
 
-function renderTOCPanel(container: HTMLElement, item: Zotero.Item): void {
+function renderTOCPanel(container: HTMLElement, _item: Zotero.Item): void {
   container.innerHTML = `
     <html:div class="ai-toc-container">
-      <html:div class="ai-toc-header">
-        <html:span>AI 目录</html:span>
-        <html:button class="ai-toc-refresh" id="toc-refresh-btn" title="生成目录">⟳</html:button>
-      </html:div>
       <html:div class="ai-toc-list" id="toc-list">
-        <html:div class="ai-toc-empty">点击按钮生成目录</html:div>
+        <html:div class="ai-toc-empty">点击上方按钮生成目录</html:div>
       </html:div>
     </html:div>
   `;
-
-  const refreshBtn = container.querySelector("#toc-refresh-btn") as HTMLButtonElement | null;
-  refreshBtn?.addEventListener("click", async () => {
-    await generateTOC(container, item);
-  });
 }
 
 async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<void> {
   ztoolkit.log("generateTOC called, container:", container?.id, container?.childNodes.length);
   const listEl = container.querySelector("#toc-list");
-  if (listEl) listEl.innerHTML = '<div class="ai-toc-loading">生成中...</div>';
+  if (listEl) listEl.innerHTML = '<html:div class="ai-toc-loading">生成中...</html:div>';
 
   const progressWindow = new ztoolkit.ProgressWindow("AI Reader", {
     closeOnClick: true,
@@ -230,13 +221,26 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
       throw new Error("No valid paragraphs extracted from PDF");
     }
 
+    // Get total pages from the open reader for proportional page estimation
+    const readerTotalPages: number = (() => {
+      const readers = (Zotero as any).Reader?._readers;
+      if (!readers || readers.length === 0) return 0;
+      const pv = readers[0]._internalReader?._primaryView?._iframeWindow?.PDFViewerApplication?.pdfViewer;
+      return pv?.pagesCount || 0;
+    })();
+
+    // Check if parseParagraphs produced real page markers (more than one distinct page value)
+    const distinctPages = new Set(paragraphs.map((p) => p.page)).size;
+    const hasRealPageMarkers = distinctPages > 1;
+    ztoolkit.log("Page markers:", distinctPages, "distinct pages, hasRealPageMarkers:", hasRealPageMarkers, "readerTotalPages:", readerTotalPages);
+
     progressWindow.changeLine({ progress: 60, text: "Generating TOC with AI..." });
 
     ztoolkit.log("TOC generateTOC step 1 - provider:", provider, "config.apiKey:", config.apiKey ? "SET" : "EMPTY", "config.endpoint:", config.endpoint);
     const configError = validateLLMConfig(provider, config);
     ztoolkit.log("TOC configError:", configError);
     if (configError) {
-      if (listEl) listEl.innerHTML = `<div class="ai-toc-empty">${escapeHtml(configError)}</div>`;
+      if (listEl) listEl.innerHTML = `<html:div class="ai-toc-empty">${escapeHtml(configError)}</html:div>`;
       return;
     }
 
@@ -254,10 +258,21 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
           ? Math.max(0, rawIndex > 0 ? rawIndex - 1 : rawIndex)
           : 0;
         const paragraph = paragraphs[zeroBasedIndex];
+
+        // Determine page: use real page marker if available, otherwise estimate
+        // proportionally from paragraph position within the document.
+        let page: number | undefined;
+        if (hasRealPageMarkers) {
+          page = paragraph?.page;
+        } else if (readerTotalPages > 0 && paragraphs.length > 0) {
+          // Proportional estimate: paragraphIndex / totalParagraphs * totalPages
+          page = Math.max(1, Math.round((zeroBasedIndex / paragraphs.length) * readerTotalPages) + 1);
+        }
+
         return {
           ...tocItem,
           paragraphIndex: zeroBasedIndex,
-          page: paragraph?.page,
+          page,
         };
       })
       .filter((tocItem: any) => typeof tocItem.title === "string" && tocItem.title.trim());
@@ -269,7 +284,7 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
 
     if (listEl) {
       if (normalizedTOCItems.length === 0) {
-        listEl.innerHTML = '<div class="ai-toc-empty">无法生成目录</div>';
+        listEl.innerHTML = '<html:div class="ai-toc-empty">无法生成目录</html:div>';
       } else {
         listEl.innerHTML = normalizedTOCItems
           .map(
@@ -298,7 +313,7 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
     }
   } catch (error) {
     ztoolkit.log("TOC generation error:", error);
-    if (listEl) listEl.innerHTML = `<div class="ai-toc-empty">Error: ${error}</div>`;
+    if (listEl) listEl.innerHTML = `<html:div class="ai-toc-empty">Error: ${error}</html:div>`;
   }
 }
 
