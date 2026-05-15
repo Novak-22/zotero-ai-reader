@@ -17,10 +17,12 @@ export class ChatService {
     provider: string,
     config: LLMConfig
   ): Promise<string> {
-    // Build context with selected text
+    // Build context with selected text (if any)
     const userMessage: ChatMessage = {
       role: "user",
-      content: `Selected text from PDF: "${selectedText}"\n\nMy question: ${content}`,
+      content: selectedText
+        ? `Selected text from PDF: "${selectedText}"\n\nMy question: ${content}`
+        : content,
       timestamp: Date.now(),
     };
 

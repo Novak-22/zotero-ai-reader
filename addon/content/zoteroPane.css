@@ -187,7 +187,8 @@
   border-top: 1px solid var(--border-color, #ccc);
 }
 
-.ai-chat-input-area textarea {
+.ai-chat-input-area textarea,
+.ai-chat-input-area html|textarea {
   width: 100%;
   resize: none;
   border: 1px solid #ccc;
@@ -195,6 +196,37 @@
   padding: 8px;
   font-family: inherit;
   font-size: 13px;
+  box-sizing: border-box;
+}
+
+.ai-chat-send-btn {
+  display: inline-block;
+  align-self: flex-end;
+  padding: 6px 16px;
+  background: #0078d4;
+  color: white;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 13px;
+  user-select: none;
+}
+
+.ai-chat-send-btn:hover {
+  background: #006bb3;
+}
+
+.ai-chat-send-btn[aria-disabled="true"] {
+  background: #ccc;
+  cursor: not-allowed;
+}
+
+.ai-chat-error {
+  color: #c00;
+  font-size: 12px;
+  padding: 4px 8px;
+  background: #fff0f0;
+  border-radius: 4px;
+  border: 1px solid #fcc;
 }
 
 .ai-chat-input-area button {

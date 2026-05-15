@@ -319,18 +319,21 @@ async function generateTOC(container: HTMLElement, item: Zotero.Item): Promise<v
 
 function renderChatUI(container: HTMLElement): void {
   const messages = chatService.getContext();
+  const doc = container.ownerDocument;
+  const ns = "http://www.w3.org/1999/xhtml";
 
+  // Set innerHTML for the static structure (no interactive elements that get stripped)
   container.innerHTML = `
     <html:div class="ai-chat-container">
       <html:div class="ai-chat-messages" id="chat-messages">
         ${
           messages.length === 0
-            ? '<html:div class="ai-chat-empty">Select text in PDF and ask questions</html:div>'
+            ? '<html:div class="ai-chat-empty">在 PDF 中选中文字后提问</html:div>'
             : messages
                 .map(
                   (m) => `
             <html:div class="ai-chat-message ${m.role}">
-              <html:div class="ai-chat-role">${m.role === "user" ? "You" : "AI"}</html:div>
+              <html:div class="ai-chat-role">${m.role === "user" ? "你" : "AI"}</html:div>
               <html:div class="ai-chat-content">${escapeHtml(m.content)}</html:div>
             </html:div>
           `
@@ -339,56 +342,101 @@ function renderChatUI(container: HTMLElement): void {
         }
       </html:div>
       <html:div class="ai-chat-input-area">
-        <html:textarea id="chat-input" placeholder="Ask about selected text..." rows="2"></html:textarea>
-        <html:input id="chat-send-btn" type="button" value="Send" />
+        <html:textarea id="chat-input" placeholder="输入问题（Ctrl+Enter 发送）..." rows="3"></html:textarea>
       </html:div>
     </html:div>
   `;
 
-  const sendBtn = container.querySelector("#chat-send-btn") as HTMLButtonElement | null;
+  // Add Send button via createElement (bypasses innerHTML sanitizer)
+  const inputArea = container.querySelector(".ai-chat-input-area");
+  const sendBtn = doc.createElementNS(ns, "span") as HTMLElement;
+  sendBtn.id = "chat-send-btn";
+  sendBtn.className = "ai-chat-send-btn";
+  sendBtn.setAttribute("role", "button");
+  sendBtn.setAttribute("tabindex", "0");
+  sendBtn.textContent = "发送";
+  inputArea?.appendChild(sendBtn);
+
+  // Scroll messages to bottom
+  const messagesEl = container.querySelector("#chat-messages") as HTMLElement | null;
+  if (messagesEl) messagesEl.scrollTop = messagesEl.scrollHeight;
+
   const input = container.querySelector("#chat-input") as HTMLTextAreaElement | null;
 
-  sendBtn?.addEventListener("click", async () => {
+  async function handleSend() {
     if (!input) return;
     const text = input.value?.trim();
     if (!text) return;
 
     const selectedText = getSelectedPDFText();
-    if (!selectedText) {
-      alert("Please select text in the PDF first.");
-      return;
-    }
-
     const provider = getDefaultProvider();
     const config = getLLMConfig();
     const configError = validateLLMConfig(provider, config);
     if (configError) {
-      alert(configError);
+      ztoolkit.log("Chat config error:", configError);
+      // Show error inline instead of alert
+      const errDiv = doc.createElementNS(ns, "div") as HTMLElement;
+      errDiv.className = "ai-chat-error";
+      errDiv.textContent = configError;
+      inputArea?.insertBefore(errDiv, input);
+      setTimeout(() => errDiv.remove(), 4000);
       return;
     }
+
     try {
-      sendBtn.setAttribute("disabled", "true");
+      sendBtn.setAttribute("aria-disabled", "true");
+      sendBtn.textContent = "...";
       input.value = "";
-      await chatService.sendMessage(text, selectedText, provider, config);
+      await chatService.sendMessage(text, selectedText || "", provider, config);
       renderChatUI(container);
     } catch (error) {
       ztoolkit.log("Chat error:", error);
-      alert(`Error: ${error}`);
-    } finally {
-      sendBtn?.removeAttribute("disabled");
+      sendBtn.textContent = "发送";
+      sendBtn.removeAttribute("aria-disabled");
+      const errDiv = doc.createElementNS(ns, "div") as HTMLElement;
+      errDiv.className = "ai-chat-error";
+      errDiv.textContent = `Error: ${error}`;
+      inputArea?.insertBefore(errDiv, input);
+      setTimeout(() => errDiv.remove(), 5000);
+    }
+  }
+
+  sendBtn.addEventListener("click", handleSend);
+
+  // Ctrl+Enter to send
+  input?.addEventListener("keydown", (e: KeyboardEvent) => {
+    if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) {
+      e.preventDefault();
+      handleSend();
     }
   });
 }
 
 function getSelectedPDFText(): string {
   try {
-    const readerWindow = (Zotero as any).getMainWindow?.()?.Zotero_Reader_Integration?.getReader?.();
-    if (readerWindow?.contentWindow) {
-      const selection = readerWindow.contentWindow.getSelection();
-      return selection?.toString().trim() || "";
+    // Try getting selection from the PDF reader iframe
+    const readers = (Zotero as any).Reader?._readers;
+    if (readers && readers.length > 0) {
+      const iframeWindow = readers[0]?._iframeWindow;
+      if (iframeWindow) {
+        const selection = iframeWindow.getSelection?.();
+        const text = selection?.toString().trim();
+        if (text) return text;
+      }
     }
   } catch {
     // Fallback
+  }
+  // Also try main window selection
+  try {
+    const mainWin = (Zotero as any).getMainWindow?.();
+    if (mainWin) {
+      const selection = mainWin.getSelection?.();
+      const text = selection?.toString().trim();
+      if (text) return text;
+    }
+  } catch {
+    // ignore
   }
   return "";
 }
