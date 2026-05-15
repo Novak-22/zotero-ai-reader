@@ -46,14 +46,35 @@
 - `0acef7c` fix: Use Zotero.Reader._readers[0]._internalReader._primaryView.navigate for page navigation
 - `02b5c70` enhance: Add TOC item styling - icons, ellipsis, page badges, and loading spinner
 
+## Phase 4: AI TOC 导航 Debug (2026-05-15)
+
+### 已修复
+- [x] **页码错误 (145000 bug)**
+  - 原因：parseParagraphs 正则 `/^(?:Page:\s*)?(\d+)$/` 匹配任意独立数字行（如 PDF 中的 "145000"）作为页码标记
+  - 修复：添加约束 `candidate >= 1 && candidate <= 9999 && candidate >= pageNumber`，只接受合理且单调递增的页码
+
+- [x] **无页码标记时所有条目指向同一页**
+  - 原因：当 PDF 文本无真实页码标记时，所有段落 page=1，导致所有 TOC 条目都跳到第 1 页
+  - 修复：检测 `distinctPages > 1` 判断是否有真实页码标记；若无则按 `paragraphIndex / totalParagraphs * readerTotalPages` 比例估算页码
+
+- [x] **`<html:button>` 被 Zotero 安全过滤器删除**
+  - 原因：renderTOCPanel 通过 innerHTML 注入 `<html:button>`，Zotero XUL 沙箱安全策略会删除 button 元素
+  - 修复：删除冗余的内联刷新按钮（sectionButtons 已提供刷新功能），所有 innerHTML 统一使用 `html:` 命名空间前缀
+
+### 验证结果
+- 点击 TOC 条目后 PDF 成功跳转到对应页面（page 3→5→6→10 均验证通过）
+- 无 "Removing unsafe node" / "Flattening unsafe node" 控制台错误
+- 28 个 TOC 条目，页码范围合理（1-10，对应 15 页 PDF）
+
 ## 当前状态
 
 AI TOC 功能：
 - ✅ 插件成功加载并显示 AI TOC 和 AI Chat 两个面板
 - ✅ 点击刷新按钮可生成目录（调用 LLM）
 - ✅ 目录以层级形式显示（level-1/2/3）
-- ✅ 点击目录项可导航到 PDF 对应页面
+- ✅ 点击目录项成功跳转到 PDF 对应页面（已验证）
 - ✅ UI 美化：加载动画、标题省略、页码标签
+- ✅ 页码估算：无页码标记时按比例估算，有页码标记时使用真实值
 
 ## 导航实现说明 (2026-05-08)
 

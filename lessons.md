@@ -379,3 +379,49 @@ npx zotero-plugin serve
 # or
 npm run build  # if script uses npx internally
 ```
+---
+
+### Lesson 16: Zotero Item Pane innerHTML Sanitizer Removes button Elements
+
+**Pattern**: Set `container.innerHTML` with `<html:button>` elements; buttons silently disappeared with console error "Removing unsafe node. Element: button."
+
+**Rule**: Zotero's XUL/XHTML security policy strips `<button>` from innerHTML in item pane section bodies. Use `sectionButtons` in `registerSection` config for interactive buttons. For plain `<div>` without `html:` prefix, the sanitizer "flattens" the tag (preserves content, removes element). Always use `html:` namespace prefix for all tags in innerHTML strings in XUL context.
+
+**Example**:
+```typescript
+// Wrong - button gets removed, div gets flattened
+container.innerHTML = `<button id="refresh">⟳</button><div class="list">...</div>`;
+
+// Correct - use html: prefix; buttons belong in sectionButtons config
+container.innerHTML = `<html:div class="list">...</html:div>`;
+// And in registerSection:
+// sectionButtons: [{ type: "refresh", onClick: ... }]
+```
+
+---
+
+### Lesson 17: parseParagraphs Page Detection Must Validate Candidate Page Numbers
+
+**Pattern**: `attachment.attachmentText` contained a standalone line "145000" (a citation count or figure ID). The page regex `/^(?:Page:\s*)?(\d+)$/` matched it, setting pageNumber=145000 for all subsequent paragraphs, causing all TOC items to navigate to the last page (capped to totalPages).
+
+**Rule**: Only accept a standalone number as a page marker if: (1) it is between 1 and 9999, AND (2) it is >= current pageNumber (monotonically increasing). When no real page markers exist (all paragraphs have the same page value), use proportional estimation: `Math.round(paragraphIndex / totalParagraphs * readerTotalPages) + 1`.
+
+**Example**:
+```typescript
+// Wrong - accepts any standalone number
+if (pageMatch) { pageNumber = parseInt(pageMatch[1], 10); continue; }
+
+// Correct
+if (pageMatch) {
+  const candidate = parseInt(pageMatch[1], 10);
+  if (candidate >= 1 && candidate <= 9999 && candidate >= pageNumber) {
+    pageNumber = candidate;
+  }
+  continue;
+}
+// Fallback in caller when no real markers:
+const distinctPages = new Set(paragraphs.map(p => p.page)).size;
+if (distinctPages <= 1 && readerTotalPages > 0) {
+  page = Math.max(1, Math.round((zeroBasedIndex / paragraphs.length) * readerTotalPages) + 1);
+}
+```
