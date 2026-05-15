@@ -147,3 +147,40 @@ async function navigateToPDFPage(page: number): Promise<void> {
 ---
 
 Last Updated: 2026-05-08
+## Phase 5: AI Chat 功能 + 设置界面修复 (2026-05-15)
+
+### 已完成
+
+- [x] **AI Chat UI 修复**
+  - 问题：`<html:input type="button">` 被 Zotero XUL 安全过滤器删除
+  - 修复：用 `createElement('span')` + `appendChild` 创建发送按钮（绕过 innerHTML 过滤器）
+  - 新增：Ctrl+Enter / Cmd+Enter 快捷键发送
+  - 新增：内联错误提示（替代 alert()）
+  - 修复：`getSelectedPDFText` 使用 `Zotero.Reader._readers[0]._iframeWindow.getSelection()`
+  - 修复：无选中文字时允许直接提问（不强制要求选中文字）
+  - 修复：`ChatService.sendMessage` 无选中文字时省略 "Selected text" 前缀
+
+- [x] **设置界面 Provider 分组显示修复**
+  - 问题：`<html:script>` 在 Zotero 插件面板中不执行（被安全策略过滤）
+  - 问题：`registerPrefsScripts` 收到的 `win` 是 Cu.Sandbox，不是真实的 preferences window
+  - 修复：通过 `PreferencePanes.register()` 的 `scripts` 数组注册 `preferences.js`
+  - 修复：`registerPrefsScripts` 用 `Services.wm.getMostRecentWindow('zotero:pref')` 获取真实窗口
+  - 修复：Hook `Zotero_Preferences._showPane` 在面板显示时调用 `updateProviderGroups`（延迟 100ms 等待 preference binding 完成）
+
+### 验证结果
+- AI Chat 发送按钮正常显示和工作
+- 发送消息 → LLM 响应 → 显示在聊天界面（已验证两轮对话）
+- 清除按钮正常工作
+- 设置界面：选择 Generic 时只显示 Generic 配置组，切换 provider 时正确切换显示
+
+## 当前状态（2026-05-15）
+
+所有核心功能已完成并验证：
+- ✅ AI TOC：生成目录 + 点击跳转 PDF 页面
+- ✅ AI Chat：发送问题 + 接收 AI 回复 + 清除历史
+- ✅ 设置界面：Provider 选择 + API Key/Endpoint/Model 配置
+- ✅ 无 plugin 相关错误（仅 Zotero 启动时的系统警告）
+
+---
+
+Last Updated: 2026-05-15
